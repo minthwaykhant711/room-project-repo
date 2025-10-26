@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/lecturer_dashboard.dart';
 
 void main() {
-  runApp(const MaterialApp());
+  runApp(MaterialApp(home: LecturerDashboard(), debugShowCheckedModeBanner: false));
 }

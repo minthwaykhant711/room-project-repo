@@ -49,7 +49,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,9 +81,27 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Hi, $username',
-                            style: TextStyle(fontSize: 30, color: Colors.white),
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Hi',
+                                  style: TextStyle(
+                                    fontSize: 30,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ', $username',
+                                  style: TextStyle(
+                                    fontSize: 30,
+                                    color: Colors.white,
+                                    // no fontWeight, default
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           Text(
                             "Lecturer's Dashboard",

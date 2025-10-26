@@ -97,7 +97,6 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                   style: TextStyle(
                                     fontSize: 30,
                                     color: Colors.white,
-                                    // no fontWeight, default
                                   ),
                                 ),
                               ],

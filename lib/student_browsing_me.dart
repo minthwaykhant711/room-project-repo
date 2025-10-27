@@ -15,21 +15,49 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
       'name': 'Meeting Room A',
       'details': 'TV, Aircon, Projects',
       'max': 6,
-      'status': 'available',
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
       'image': 'assets/images/study room A.jpg',
     },
     {
       'name': 'Meeting Room B',
       'details': 'Whiteboard, Aircon',
       'max': 4,
-      'status': 'disabled',
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
       'image': 'assets/images/study room A.jpg',
     },
     {
       'name': 'Meeting Room C',
       'details': 'TV, Aircon, 8 seats',
       'max': 8,
-      'status': 'reserved',
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
+      'image': 'assets/images/study room A.jpg',
+    },
+
+    {
+      'name': 'Meeting Room C',
+      'details': 'TV, Aircon, 8 seats',
+      'max': 8,
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
       'image': 'assets/images/study room A.jpg',
     },
   ];
@@ -41,7 +69,28 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
     '14:00 - 16:00',
   ];
 
-  String selectedTime = '8:00 - 10:00';
+  late Map<int, String> selectedTimes;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedTimes = {for (int i = 0; i < rooms.length; i++) i: timeSlots.first};
+  }
+
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'available':
+        return Colors.teal;
+      case 'pending':
+        return Colors.orange;
+      case 'reserved':
+        return Colors.blueGrey;
+      case 'disabled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
 
   String selectedCategory = 'Meeting';
 
@@ -49,9 +98,43 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final screenHeight = media.size.height;
-    final headerHeight = screenHeight * 0.25;
+    final headerHeight = screenHeight * 0.30;
 
     return Scaffold(
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          height: 50,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: Colors.white,
+                  size: 26,
+                ),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              const Icon(Icons.home_filled, color: Colors.white, size: 28),
+              const Icon(Icons.calendar_today, color: Colors.white, size: 26),
+            ],
+          ),
+        ),
+      ),
+
       body: Column(
         children: [
           Container(
@@ -68,7 +151,7 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                   children: [
                     SafeArea(
                       child: Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -88,47 +171,59 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                            SizedBox(height: 16),
                           ],
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.logout,
-                        color: Colors.white,
-                        size: 28,
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.logout,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () {},
                       ),
-                      onPressed: () {},
                     ),
                   ],
                 ),
 
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 20,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.calendar_month, color: Colors.black87),
-                      const SizedBox(width: 8),
-                      Text(
-                        // Always show today's date
-                        "${DateTime.now().toLocal()}".split(' ')[0],
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.black87,
-                        ),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 20,
                       ),
-                    ],
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+
+                        children: [
+                          const Icon(
+                            Icons.calendar_month,
+                            color: Colors.black87,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            // Always show today's date
+                            "${DateTime.now().toLocal()}".split(' ')[0],
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -171,9 +266,14 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
               itemCount: rooms.length,
               itemBuilder: (context, index) {
                 final room = rooms[index];
-                final isAvailable = room['status'] == 'available';
+                final currentSlot = selectedTimes[index];
+                final currentStatus =
+                    room['statuses'][currentSlot] ?? 'unknown';
+                final isAvailable = currentStatus == 'available';
                 return Container(
-                  width: 280,
+                  width: 320,
+                  height: 420,
+
                   margin: EdgeInsets.only(
                     left: index == 0 ? 4 : 12,
                     right: index == rooms.length - 1 ? 4 : 0,
@@ -199,7 +299,7 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                         ),
                         child: Image.asset(
                           room['image'],
-                          height: 160,
+                          height: 260,
                           width: double.infinity,
                           fit: BoxFit.cover,
                         ),
@@ -207,7 +307,10 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
 
                       // First row: Room name and info icon
                       Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
 
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,13 +319,41 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    room['name'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        room['name'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "${room['details']}\nMax: ${room['max']} people",
+                                        style: const TextStyle(
+                                          color: Color.fromARGB(
+                                            255,
+                                            71,
+                                            69,
+                                            69,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                ),
+
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.assignment_turned_in,
+                                    color: Color(0xFF003366),
+                                  ),
+                                  onPressed: isAvailable
+                                      ? () {
+                                          // Add your request action here
+                                        }
+                                      : null,
                                 ),
                               ],
                             ),
@@ -230,78 +361,60 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                         ),
                       ),
 
-                      // Room details
-                      Text(
-                        "${room['details']}\nMax: ${room['max']} people",
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
 
                       // Time slot row with dropdown
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           const Icon(Icons.access_time, size: 20),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              value: selectedTime,
-                              items: timeSlots.map((slot) {
-                                return DropdownMenuItem<String>(
-                                  value: slot,
-                                  child: Text(slot),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    selectedTime = value;
-                                  });
-                                }
-                              },
+                          Flexible(
+                            fit: FlexFit.loose,
+
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 160),
+                              child: DropdownButton<String>(
+                                isExpanded: true,
+                                value: selectedTimes[index],
+                                items: timeSlots.map((slot) {
+                                  return DropdownMenuItem<String>(
+                                    value: slot,
+                                    child: Text(slot),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      selectedTimes[index] = value;
+                                    });
+                                  }
+                                },
+                              ),
                             ),
                           ),
-                        ],
-                      ),
 
-                      const SizedBox(height: 8),
-
-                      // Status and request button row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: isAvailable
-                                  ? Colors.teal[300]
-                                  : Colors.red[300],
+                              color: getStatusColor(currentStatus),
                               borderRadius: BorderRadius.circular(50),
                             ),
                             child: Text(
-                              isAvailable ? "available" : "disabled",
+                              currentStatus,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: Color(0xFF003366),
-                            ),
-                            onPressed: isAvailable
-                                ? () {
-                                    // Add your request action here
-                                  }
-                                : null,
-                          ),
                         ],
                       ),
+
+                      const SizedBox(height: 8),
                     ],
                   ),
                 );

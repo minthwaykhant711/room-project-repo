@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/student_browse.dart';
+
 import 'package:flutter_application_1/student_browsing_me.dart';
 
 void main() {

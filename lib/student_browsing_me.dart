@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class StudentBrowsingMe extends StatefulWidget {
   const StudentBrowsingMe({super.key});
@@ -351,7 +352,164 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                                   ),
                                   onPressed: isAvailable
                                       ? () {
-                                          // Add your request action here
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible:
+                                                true, // allow tap outside to close
+                                            builder: (BuildContext context) {
+                                              return BackdropFilter(
+                                                filter: ImageFilter.blur(
+                                                  sigmaX: 4,
+                                                  sigmaY: 4,
+                                                ),
+                                                child: AlertDialog(
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
+                                                  ),
+                                                  title: const Text(
+                                                    'Confirm Booking',
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  content: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        'Session in ${room['name']}',
+                                                        style: const TextStyle(
+                                                          color: Colors.orange,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons
+                                                                .calendar_month,
+                                                            size: 18,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                          Text(
+                                                            "${DateTime.now().toLocal()}"
+                                                                .split(' ')[0],
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 14,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons.access_time,
+                                                            size: 18,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                          Text(
+                                                            selectedTimes[rooms
+                                                                    .indexOf(
+                                                                      room,
+                                                                    )] ??
+                                                                'Unknown Time', // Updated line
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons.people,
+                                                            size: 18,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                          Text(
+                                                            'Quiet space for up to ${room['max']} people.',
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  actionsAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceEvenly,
+                                                  actions: [
+                                                    ElevatedButton(
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.green,
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      onPressed: () {
+                                                        Navigator.pop(context);
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              'Booking confirmed for ${room['name']} at ${selectedTimes[index]}',
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                      child: const Text(
+                                                        'Confirm',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    ElevatedButton(
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            context,
+                                                          ),
+                                                      child: const Text(
+                                                        'Cancel',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          );
                                         }
                                       : null,
                                 ),

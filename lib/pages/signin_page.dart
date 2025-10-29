@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/lecturer_dashboard.dart';
+import 'package:flutter_application_1/staff_dashboard.dart';
 import 'package:flutter_application_1/student_browsing_multi.dart';
 import 'signup_page.dart';
 
@@ -27,6 +29,21 @@ class _SignInPageState extends State<SignInPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const StudentBrowsingMulti()),
+      );
+      return;
+    }
+    if (username == 'staff' && password == '1234') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => StaffDashboard()),
+      );
+      return;
+    }
+
+    if (username == 'lecturer' && password == '1234') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => LecturerDashboard()),
       );
       return;
     }

@@ -1,0 +1,504 @@
+import 'package:flutter/material.dart';
+
+class StaffBrowsing extends StatefulWidget {
+  const StaffBrowsing({super.key});
+
+  @override
+  State<StaffBrowsing> createState() => _StaffBrowsingState();
+}
+
+class _StaffBrowsingState extends State<StaffBrowsing> {
+  final List<String> categories = ['Study', 'Multimedia', 'Meeting'];
+
+  final List<Map<String, dynamic>> rooms = [
+    {
+      'name': 'Meeting Room A',
+      'details': 'TV, Aircon, Projects',
+      'max': 6,
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
+      'image': 'assets/images/study room A.jpg',
+    },
+    {
+      'name': 'Meeting Room B',
+      'details': 'Whiteboard, Aircon',
+      'max': 4,
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
+      'image': 'assets/images/study room A.jpg',
+    },
+    {
+      'name': 'Meeting Room C',
+      'details': 'TV, Aircon, 8 seats',
+      'max': 8,
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
+      'image': 'assets/images/study room A.jpg',
+    },
+
+    {
+      'name': 'Meeting Room C',
+      'details': 'TV, Aircon, 8 seats',
+      'max': 8,
+      'statuses': {
+        '8:00 - 10:00': 'available',
+        '10:00 - 12:00': 'pending',
+        '13:00 - 14:00': 'reserved',
+        '14:00 - 16:00': 'disabled',
+      },
+      'image': 'assets/images/study room A.jpg',
+    },
+  ];
+
+  final List<String> timeSlots = [
+    '8:00 - 10:00',
+    '10:00 - 12:00',
+    '13:00 - 14:00',
+    '14:00 - 16:00',
+  ];
+
+  late Map<int, String> selectedTimes;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedTimes = {for (int i = 0; i < rooms.length; i++) i: timeSlots.first};
+  }
+
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'available':
+        return Colors.teal;
+      case 'pending':
+        return Colors.orange;
+      case 'reserved':
+        return const Color.fromARGB(255, 12, 143, 209);
+      case 'disabled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  final List<String> filters = [
+    'None',
+    'available',
+    'pending',
+    'reserved',
+    'disabled',
+  ];
+
+  String selectedFilter = 'None';
+
+  List<Map<String, dynamic>> getFilteredRooms() {
+    if (selectedFilter == 'None') return rooms;
+
+    return rooms
+        .asMap()
+        .entries
+        .where((entry) {
+          final idx = entry.key;
+          final room = entry.value;
+          final slot = selectedTimes[idx] ?? timeSlots.first;
+          final statuses = room['statuses'] as Map<String, dynamic>?;
+          final status = statuses != null
+              ? (statuses[slot] as String? ?? 'unknown')
+              : 'unknown';
+          return status == selectedFilter;
+        })
+        .map((e) => e.value)
+        .toList();
+  }
+
+  String selectedCategory = 'Meeting';
+
+  @override
+  Widget build(BuildContext context) {
+    //header layout
+    final media = MediaQuery.of(context);
+    final screenHeight = media.size.height;
+    final headerHeight = screenHeight * 0.30;
+
+    return Scaffold(
+      //bottom navigation bar
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          height: 50,
+          margin: const EdgeInsets.symmetric(horizontal: 35, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(255, 162, 159, 159),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: Colors.white,
+                  size: 26,
+                ),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              const Icon(Icons.home_filled, color: Colors.white, size: 28),
+              const Icon(Icons.calendar_today, color: Colors.white, size: 26),
+            ],
+          ),
+        ),
+      ),
+
+      body: Column(
+        children: [
+          //1st container blue part
+          Container(
+            width: double.infinity,
+            height: headerHeight,
+            decoration: const BoxDecoration(
+              color: Color(0xFF003366),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(35)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hi, Staff',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Manage the Room',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.logout,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () {},
+                      ),
+                    ),
+                  ],
+                ),
+
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 20,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+
+                            children: [
+                              const Icon(
+                                Icons.calendar_month,
+                                color: Colors.black87,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                // Always show today's date
+                                "${DateTime.now().toLocal()}".split(' ')[0],
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Spacer(),
+
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedFilter,
+                              items: filters.map((f) {
+                                return DropdownMenuItem<String>(
+                                  value: f,
+                                  child: Text(
+                                    f == 'None'
+                                        ? 'Filter: None'
+                                        : f[0].toUpperCase() + f.substring(1),
+                                    style: const TextStyle(
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() {
+                                  selectedFilter = value;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          //room type filter
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
+              children: categories.map((cat) {
+                final isSelected = cat == selectedCategory;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    selectedColor: const Color.fromARGB(255, 24, 77, 131),
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                    ),
+                    onSelected: (_) {
+                      setState(() => selectedCategory = cat);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                final filteredRooms = getFilteredRooms();
+
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: filteredRooms.length,
+                  itemBuilder: (context, index) {
+                    final room = filteredRooms[index];
+                    final originalIndex = rooms.indexOf(room);
+                    final currentSlot =
+                        selectedTimes[originalIndex] ?? timeSlots.first;
+
+                    final currentStatus =
+                        room['statuses'][currentSlot] ?? 'unknown';
+                    // final isAvailable = currentStatus == 'available';
+                    return Container(
+                      width: 320,
+                      height: 420,
+
+                      margin: EdgeInsets.only(
+                        // left: index == 0 ? 4 : 12,
+                        // right: index == rooms.length - 1 ? 4 : 0,
+                        left: index == 0 ? 4 : 12,
+                        right: index == filteredRooms.length - 1 ? 4 : 0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16),
+                            ),
+                            child: Image.asset(
+                              room['image'],
+                              height: 300,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+
+                          // First row: Room name and info icon
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            room['name'],
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            "${room['details']}\nMax: ${room['max']} people",
+                                            style: const TextStyle(
+                                              color: Color.fromARGB(
+                                                255,
+                                                71,
+                                                69,
+                                                69,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // Time slot row with dropdown
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              const Icon(Icons.access_time, size: 20),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                fit: FlexFit.loose,
+
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 160,
+                                  ),
+                                  child: DropdownButton<String>(
+                                    isExpanded: true,
+                                    value: selectedTimes[index],
+                                    items: timeSlots.map((slot) {
+                                      return DropdownMenuItem<String>(
+                                        value: slot,
+                                        child: Text(slot),
+                                      );
+                                    }).toList(),
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        setState(() {
+                                          selectedTimes[index] = value;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: getStatusColor(currentStatus),
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: Text(
+                                  currentStatus,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

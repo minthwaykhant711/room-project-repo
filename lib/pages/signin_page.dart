@@ -1,8 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/student_browsing_multi.dart';
 import 'signup_page.dart';
 
-class SignInPage extends StatelessWidget {
+class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
+
+  @override
+  State<SignInPage> createState() => _SignInPageState();
+}
+
+class _SignInPageState extends State<SignInPage> {
+  final TextEditingController _user = TextEditingController();
+  final TextEditingController _pass = TextEditingController();
+
+  @override
+  void dispose() {
+    _user.dispose();
+    _pass.dispose();
+    super.dispose();
+  }
+
+  void _attemptSignIn() {
+    final username = _user.text.trim();
+    final password = _pass.text;
+    if (username == 'user' && password == '1234') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const StudentBrowsingMulti()),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Invalid credentials')));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,10 +104,7 @@ class SignInPage extends StatelessWidget {
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF0E2A5D),
-                        Color(0xFF1A4FA8),
-                      ],
+                      colors: [Color(0xFF0E2A5D), Color(0xFF1A4FA8)],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
@@ -87,19 +115,23 @@ class SignInPage extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 40),
+                      horizontal: 30,
+                      vertical: 40,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const SizedBox(height: 40),
                         TextField(
+                          controller: _user,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.person_outline),
                             hintText: 'Username',
                             filled: true,
                             fillColor: Colors.grey.shade300,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 18),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none,
@@ -108,14 +140,16 @@ class SignInPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
                         TextField(
+                          controller: _pass,
                           obscureText: true,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.lock_outline),
                             hintText: 'Password',
                             filled: true,
                             fillColor: Colors.grey.shade300,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 18),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none,
@@ -127,10 +161,7 @@ class SignInPage extends StatelessWidget {
                           alignment: Alignment.centerRight,
                           child: Text(
                             'Forgot your password?',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
+                            style: TextStyle(color: Colors.white, fontSize: 14),
                           ),
                         ),
                         const SizedBox(height: 40),
@@ -144,9 +175,11 @@ class SignInPage extends StatelessWidget {
                               borderRadius: BorderRadius.circular(30),
                             ),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 80, vertical: 16),
+                              horizontal: 80,
+                              vertical: 16,
+                            ),
                           ),
-                          onPressed: () {},
+                          onPressed: _attemptSignIn,
                           child: const Text(
                             'SIGN IN',
                             style: TextStyle(

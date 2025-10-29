@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/staff_dashboard.dart';
+import 'package:flutter_application_1/staff_room_management.dart';
 
 void main() {
-  runApp(MaterialApp(home: StaffDashboard(), debugShowCheckedModeBanner: false));
+  runApp(const MaterialApp(home: StaffRoomManagementPage()));
 }

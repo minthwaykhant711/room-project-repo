@@ -1,6 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
+import 'package:flutter_application_1/lecturer_dashboard.dart';
 
 class LecturerHistory extends StatefulWidget {
   const LecturerHistory({super.key});
@@ -11,11 +11,9 @@ class LecturerHistory extends StatefulWidget {
 
 class _LecturerHistoryState extends State<LecturerHistory>
     with SingleTickerProviderStateMixin {
-  // -------------------------------------------------------------------------
-  // VARIABLES & CONTROLLERS
-  // -------------------------------------------------------------------------
+
   late TabController _tabController;
-  final String username = 'David';
+  final String username = 'Aj.Surapong';
 
   @override
   void initState() {
@@ -29,16 +27,16 @@ class _LecturerHistoryState extends State<LecturerHistory>
     super.dispose();
   }
 
-  // -------------------------------------------------------------------------
-  // Sample Data
-  // -------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // SAMPLE DATA
+  // ---------------------------------------------------------------------------
   final List<Map<String, dynamic>> _allBookings = [
     {
       'room': 'Study Room A',
       'date': 'Mon, Oct 20',
       'time': '08:00 - 10:00',
       'status': 0,
-      'approver': '', // Approver Empty = Pending
+      'approver': '',
       'booked_by': 'Lisa',
     },
     {
@@ -61,8 +59,8 @@ class _LecturerHistoryState extends State<LecturerHistory>
       'room': 'Study Room A',
       'date': 'Mon, Oct 6',
       'time': '08:00 - 10:00',
-      'status': 1, // 1 = Approved
-      'approver': 'Ajarn Surapong', // Has Approver = History
+      'status': 1,
+      'approver': 'Ajarn Surapong',
       'booked_by': 'Lisa',
     },
     {
@@ -77,9 +75,10 @@ class _LecturerHistoryState extends State<LecturerHistory>
       'room': 'Study Room C',
       'date': 'Tue, Sep 30',
       'time': '13:00 - 15:00',
-      'status': 0, // 0 = Rejected
+      'status': 0, // Rejected
       'approver': 'Ajarn Nick',
       'booked_by': 'Emma',
+      'reason': 'Exceeded booking limit for this week',
     },
     {
       'room': 'Meeting Room A',
@@ -99,59 +98,32 @@ class _LecturerHistoryState extends State<LecturerHistory>
     },
   ];
 
-  // -------------------------------------------------------------------------
-  // Action Handlers (Approve & Reject) & Custom Dialog
-  // -------------------------------------------------------------------------
-
-  // UPDATED WIDGET: A custom, auto-dismissing dialog that is also tappable
-  // UPDATED WIDGET: A custom, auto-dismissing dialog with larger icon and new styling
-  Future<void> _showAutoDismissDialog({
-    required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
-    required String message,
-  }) async {
+  // ---------------------------------------------------------------------------
+  // DIALOG HELPERS (Figma-style)
+  // ---------------------------------------------------------------------------
+  Future<void> _showApprovedDialog() async {
     await showDialog(
       context: context,
       barrierDismissible: true,
       builder: (ctx) {
-        // Automatically close the dialog after 2 seconds
-        Future.delayed(const Duration(seconds: 2), () {
+        Future.delayed(const Duration(milliseconds: 1200), () {
           if (Navigator.of(ctx, rootNavigator: true).canPop()) {
-            Navigator.of(ctx, rootNavigator: true).pop(true);
+            Navigator.of(ctx, rootNavigator: true).pop();
           }
         });
-
-        return GestureDetector(
-          onTap: () {
-            Navigator.of(ctx, rootNavigator: true).pop(true);
-          },
-          child: Dialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 75,
-                    backgroundColor: iconColor,
-                    child: Icon(icon, color: Colors.white, size: 120),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    message,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.check_circle, size: 120, color: Color(0xFF1FA22A)),
+                SizedBox(height: 14),
+                Text('Booking Approved',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              ],
             ),
           ),
         );
@@ -159,127 +131,109 @@ class _LecturerHistoryState extends State<LecturerHistory>
     );
   }
 
-  // UPDATED FUNCTION
-  Future<void> _approveBooking(Map<String, dynamic> booking) async {
-    // Show the custom dialog and wait for it to finish
-    await _showAutoDismissDialog(
+  Future<void> _showRejectedDialog() async {
+    await showDialog(
       context: context,
-      icon: Icons.check,
-      iconColor: Colors.green,
-      message: 'Booking Approved',
+      barrierDismissible: true,
+      builder: (ctx) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (Navigator.of(ctx, rootNavigator: true).canPop()) {
+            Navigator.of(ctx, rootNavigator: true).pop();
+          }
+        });
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.cancel, size: 120, color: Color(0xFFDA351C)),
+                SizedBox(height: 14),
+                Text('Booking Rejected',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        );
+      },
     );
+  }
 
-    // Update the state AFTER the dialog has closed
-    if (!mounted) return; // Check if the widget is still in the tree
+  // ---------------------------------------------------------------------------
+  // ACTIONS
+  // ---------------------------------------------------------------------------
+  Future<void> _approveBooking(Map<String, dynamic> booking) async {
+    await _showApprovedDialog(); // stay on page
+    if (!mounted) return;
     setState(() {
-      final index = _allBookings.indexOf(booking);
-      if (index != -1) {
-        _allBookings[index]['status'] = 1; // Set status to Approved
-        _allBookings[index]['approver'] = username; // Set approver
+      final idx = _allBookings.indexOf(booking);
+      if (idx != -1) {
+        _allBookings[idx]['status'] = 1;
+        _allBookings[idx]['approver'] = username;
       }
     });
   }
 
-  // UPDATED FUNCTION with new UI for Reject Dialog
   Future<void> _rejectBooking(Map<String, dynamic> booking) async {
     final reasonController = TextEditingController();
-    bool isButtonEnabled = false;
+    bool enabled = false;
 
-    final bool? isSubmitted = await showDialog<bool>(
+    final bool? ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              // Style for the dialog itself
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Reason for Rejection'),
+          content: TextField(
+            controller: reasonController,
+            autofocus: true,
+            maxLines: 3,
+            decoration: InputDecoration(
+              labelText: 'Reason',
+              hintText: 'e.g., Room maintenance',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            ),
+            onChanged: (t) => setDialog(() => enabled = t.trim().isNotEmpty),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: enabled ? () => Navigator.of(ctx).pop(true) : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF003366),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              title: const Text('Reason for Rejection'),
-              content: TextField(
-                controller: reasonController,
-                autofocus: true,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Reason',
-                  hintText: 'e.g., Room maintenance',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).primaryColor,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 20,
-                  ),
-                ),
-                onChanged: (text) {
-                  setDialogState(() {
-                    isButtonEnabled = text.trim().isNotEmpty;
-                  });
-                },
-              ),
-              actions: [
-                // Secondary action button
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
-                // Primary action button, changed to ElevatedButton
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromRGBO(0, 51, 102, 1),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: isButtonEnabled
-                      ? () => Navigator.of(ctx).pop(true)
-                      : null, // Still disabled when no reason is entered
-                  child: const Text('Submit'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
     );
 
-    if (isSubmitted == true) {
-      await _showAutoDismissDialog(
-        context: context,
-        icon: Icons.close,
-        iconColor: Colors.red,
-        message: 'Booking Rejected',
-      );
-
+    if (ok == true) {
+      await _showRejectedDialog(); // stay on page
       if (!mounted) return;
       setState(() {
-        final index = _allBookings.indexOf(booking);
-        if (index != -1) {
-          _allBookings[index]['status'] = 0;
-          _allBookings[index]['approver'] = username;
+        final idx = _allBookings.indexOf(booking);
+        if (idx != -1) {
+          _allBookings[idx]['status'] = 0;
+          _allBookings[idx]['approver'] = username;
+          _allBookings[idx]['reason'] = reasonController.text.trim();
         }
       });
     }
   }
 
-  // -------------------------------------------------------------------------
-  // WIDGET BUILDERS
-  // -------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // CARD & EMPTY
+  // ---------------------------------------------------------------------------
   Widget _buildBookingCard(Map<String, dynamic> b) {
     final int status = b['status'] as int;
-    final bool isPending = status == 0 && b['approver'].isEmpty;
+    final bool isPending = status == 0 && (b['approver'] as String).isEmpty;
 
     String statusText;
     Color statusColor;
@@ -309,19 +263,19 @@ class _LecturerHistoryState extends State<LecturerHistory>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Title + room
             RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 16, color: Colors.black),
                 children: [
                   const TextSpan(text: 'Session in '),
-                  TextSpan(
-                    text: b['room'],
-                    style: const TextStyle(color: Colors.orange),
-                  ),
+                  TextSpan(text: b['room'], style: const TextStyle(color: Colors.orange)),
                 ],
               ),
             ),
             const SizedBox(height: 8),
+
+            // Date & time
             Row(
               children: [
                 const Icon(Icons.calendar_month_outlined, size: 20),
@@ -334,6 +288,8 @@ class _LecturerHistoryState extends State<LecturerHistory>
               ],
             ),
             const SizedBox(height: 8),
+
+            // Booked by
             Row(
               children: [
                 const Icon(Icons.person_outline, size: 20),
@@ -343,36 +299,28 @@ class _LecturerHistoryState extends State<LecturerHistory>
                     style: const TextStyle(fontSize: 14, color: Colors.black),
                     children: [
                       const TextSpan(text: 'Booked by '),
-                      TextSpan(
-                        text: b['booked_by'],
-                        style: const TextStyle(color: Colors.orange),
-                      ),
+                      TextSpan(text: b['booked_by'], style: const TextStyle(color: Colors.orange)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                if (isPending) ...[
+
+            // Pending actions OR status line
+            if (isPending) ...[
+              Row(
+                children: [
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _approveBooking(b),
-                      icon: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      label: const Text(
-                        'Approve',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      icon: const Icon(Icons.check, size: 18, color: Colors.white),
+                      label: const Text('Approve', style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        backgroundColor: const Color(0xFF1FA22A),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: const StadiumBorder(),
                       ),
                     ),
                   ),
@@ -380,24 +328,21 @@ class _LecturerHistoryState extends State<LecturerHistory>
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _rejectBooking(b),
-                      icon: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      label: const Text(
-                        'Reject',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      icon: const Icon(Icons.close, size: 18, color: Colors.white),
+                      label: const Text('Reject', style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        backgroundColor: const Color(0xFFDA351C),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: const StadiumBorder(),
                       ),
                     ),
                   ),
-                ] else ...[
+                ],
+              ),
+            ] else ...[
+              Row(
+                children: [
                   Icon(statusIcon, color: statusColor, size: 20),
                   const SizedBox(width: 6),
                   RichText(
@@ -406,16 +351,29 @@ class _LecturerHistoryState extends State<LecturerHistory>
                       children: [
                         TextSpan(text: statusText),
                         const TextSpan(text: ' by '),
-                        TextSpan(
-                          text: b['approver'],
-                          style: const TextStyle(color: Colors.orange),
-                        ),
+                        TextSpan(text: b['approver'], style: const TextStyle(color: Colors.orange)),
                       ],
                     ),
                   ),
                 ],
+              ),
+              if (status == 0 && (b['approver'] as String).isNotEmpty && b.containsKey('reason')) ...[
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline, size: 20, color: Colors.redAccent),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Reason: ${b['reason']}',
+                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                    ),
+                  ],
+                ),
               ],
-            ),
+            ],
           ],
         ),
       ),
@@ -423,233 +381,170 @@ class _LecturerHistoryState extends State<LecturerHistory>
   }
 
   Widget _buildEmptyState(String title) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-        const SizedBox(height: 16),
-        Text(
-          '$title is empty',
-          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text('$title is empty', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            Text('No ${title.toLowerCase()} bookings found', style: TextStyle(color: Colors.grey[500])),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'No ${title.toLowerCase()} bookings found',
-          style: TextStyle(color: Colors.grey[500]),
-        ),
-      ],
-    ),
-  );
+      );
 
-  // -------------------------------------------------------------------------
-  // MAIN BUILD METHOD
-  // -------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // BUILD
+  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final pending = _allBookings.where((b) => b['approver'].isEmpty).toList();
-    final history = _allBookings
-        .where((b) => b['approver'].isNotEmpty)
-        .toList();
-
+    final pending = _allBookings.where((b) => (b['approver'] as String).isEmpty).toList();
+    final history = _allBookings.where((b) => (b['approver'] as String).isNotEmpty).toList();
+    final headerHeight = MediaQuery.of(context).size.height * 0.24;
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(217, 217, 217, 1),
+      backgroundColor: const Color(0xFFD9D9D9),
       extendBody: true,
-      body: Stack(
-        children: [
-          Column(
+  
+      // ===== Bottom Nav (same format as Staff) =====
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          height: 56,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Container(
-                decoration: const BoxDecoration(
-                  color: Color.fromRGBO(0, 51, 102, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(color: Colors.black, width: 2),
-                  ),
-                ),
-                width: double.infinity,
-                height: 200,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 50),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              RichText(
-                                text: TextSpan(
-                                  children: [
-                                    const TextSpan(
-                                      text: 'Hi',
-                                      style: TextStyle(
-                                        fontSize: 28,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: ', $username',
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Text(
-                                'Booking Requests',
-                                style: TextStyle(
-                                  fontSize: 25,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            onPressed: () => showLogoutDialog(context),
-                            icon: const Icon(
-                              Icons.logout_rounded,
-                              color: Colors.white,
-                              size: 40,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 20.0),
-                      child: SizedBox(
-                        width: 160,
-                        child: TabBar(
-                          controller: _tabController,
-                          labelColor: Colors.amber,
-                          unselectedLabelColor: Colors.white70,
-                          indicatorColor: Colors.amber,
-                          indicatorSize: TabBarIndicatorSize.label,
-                          dividerColor: Colors.transparent,
-                          labelStyle: const TextStyle(fontSize: 18),
-                          labelPadding: const EdgeInsets.symmetric(
-                            horizontal: 0,
-                          ),
-                          tabs: const [
-                            Tab(text: 'Pending'),
-                            Tab(text: 'History'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.maybePop(context),
               ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    pending.isEmpty
-                        ? _buildEmptyState('Pending')
-                        : ListView.builder(
-                            padding: const EdgeInsets.only(
-                              top: 10,
-                              bottom: 100,
-                            ),
-                            itemCount: pending.length,
-                            itemBuilder: (_, i) =>
-                                _buildBookingCard(pending[i]),
-                          ),
-                    history.isEmpty
-                        ? _buildEmptyState('History')
-                        : ListView.builder(
-                            padding: const EdgeInsets.only(
-                              top: 10,
-                              bottom: 100,
-                            ),
-                            itemCount: history.length,
-                            itemBuilder: (_, i) =>
-                                _buildBookingCard(history[i]),
-                          ),
-                  ],
-                ),
+              IconButton(
+                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LecturerDashboard())),
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                onPressed: () {
+                  // already here
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('You are already on the Booking page'),
+                      duration: const Duration(milliseconds: 1200),
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                },
               ),
             ],
           ),
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
-                child: Container(
-                  height: 65,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
+        ),
+      ),
+
+      // ===== Body =====
+      body: Column(
+        children: [
+          // ===== Header (matched to StaffHistory) =====
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF003366),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+              border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
+            ),
+            width: double.infinity,
+            height: headerHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 60),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const SizedBox(width: 20),
-                      IconButton(
-                        icon: Icon(
-                          Icons.arrow_back_rounded,
-                          size: 40,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {
-                          Navigator.maybePop(context);
-                        },
+                      // Greeting + subtitle
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                const TextSpan(
+                                  text: 'Hi',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ', $username',
+                                  style: const TextStyle(fontSize: 28, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Text('Booking Requests', style: TextStyle(fontSize: 25, color: Colors.white)),
+                        ],
                       ),
-                      const Spacer(),
                       IconButton(
-                        icon: Icon(
-                          Icons.home_rounded,
-                          size: 40,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {},
+                        onPressed: () => showLogoutDialog(context),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        icon: Icon(
-                          Icons.today_rounded,
-                          size: 40,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {
-                          final bool isOnBookingPage =
-                              context.widget.runtimeType == LecturerHistory;
-                          if (!isOnBookingPage) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LecturerHistory(),
-                              ),
-                            );
-                          } else {
-                            if (_tabController.index != 0) {
-                              _tabController.animateTo(0);
-                            }
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 20),
                     ],
                   ),
                 ),
-              ),
+                const SizedBox(height: 20),
+
+                // Tabs
+                Padding(
+                  padding: const EdgeInsets.only(left: 20.0),
+                  child: SizedBox(
+                    width: 185,
+                    child: TabBar(
+                      controller: _tabController,
+                      labelColor: Colors.amber,
+                      unselectedLabelColor: Colors.white70,
+                      indicatorColor: Colors.amber,
+                      indicatorSize: TabBarIndicatorSize.label,
+                      dividerColor: Colors.transparent,
+                      labelStyle: const TextStyle(fontSize: 20),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 0),
+                      tabs: const [Tab(text: 'Pending'), Tab(text: 'History')],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ===== Tab Content =====
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                pending.isEmpty
+                    ? _buildEmptyState('Pending')
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(top: 10, bottom: 100),
+                        itemCount: pending.length,
+                        itemBuilder: (_, i) => _buildBookingCard(pending[i]),
+                      ),
+                history.isEmpty
+                    ? _buildEmptyState('History')
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(top: 10, bottom: 100),
+                        itemCount: history.length,
+                        itemBuilder: (_, i) => _buildBookingCard(history[i]),
+                      ),
+              ],
             ),
           ),
         ],

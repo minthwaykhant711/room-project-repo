@@ -8,7 +8,8 @@ import 'package:flutter_application_1/staff_browsing.dart';
 import 'package:flutter_application_1/staff_dashboard.dart';
 import 'package:flutter_application_1/staff_history.dart';
 import 'package:flutter_application_1/staff_room_management.dart';
+import 'package:flutter_application_1/student_browsing_me.dart';
 
 void main() {
-  runApp(const MaterialApp(home: StaffHistory()));
+  runApp(const MaterialApp(home: WelcomePage()));
 }

@@ -251,7 +251,7 @@ class _StaffHistoryState extends State<StaffHistory>
   Widget build(BuildContext context) {
     final pending = _allBookings.where((b) => b['approver'].isEmpty).toList();
     final history = _allBookings.where((b) => b['approver'].isNotEmpty).toList();
-
+    final headerHeight = MediaQuery.of(context).size.height * 0.24;
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
       extendBody: true,
@@ -306,11 +306,11 @@ class _StaffHistoryState extends State<StaffHistory>
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             width: double.infinity,
-            height: 200,
+            height: headerHeight,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 50),
+                const SizedBox(height: 60),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Row(
@@ -345,7 +345,7 @@ class _StaffHistoryState extends State<StaffHistory>
                 Padding(
                   padding: const EdgeInsets.only(left: 20.0),
                   child: SizedBox(
-                    width: 160,
+                    width: 185,
                     child: TabBar(
                       controller: _tabController,
                       labelColor: Colors.amber,
@@ -353,7 +353,7 @@ class _StaffHistoryState extends State<StaffHistory>
                       indicatorColor: Colors.amber,
                       indicatorSize: TabBarIndicatorSize.label,
                       dividerColor: Colors.transparent,
-                      labelStyle: const TextStyle(fontSize: 18),
+                      labelStyle: const TextStyle(fontSize: 20),
                       labelPadding: const EdgeInsets.symmetric(horizontal: 0),
                       tabs: const [Tab(text: 'Pending'), Tab(text: 'History')],
                     ),

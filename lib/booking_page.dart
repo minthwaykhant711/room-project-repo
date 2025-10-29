@@ -413,9 +413,7 @@ class _HistoryPageState extends State<BookingPage>
                           color: Colors.white.withOpacity(0.8),
                         ),
                         onPressed: () {
-                          if (Navigator.canPop(context)) {
-                            Navigator.pop(context);
-                          }
+                          Navigator.maybePop(context);
                         },
                       ),
                       const Spacer(),
@@ -427,7 +425,7 @@ class _HistoryPageState extends State<BookingPage>
                           color: Colors.white.withOpacity(0.8),
                         ),
                         onPressed: () {
-                          // Navigate to home page
+                          // Navigate to StudentBrowse Page
                         },
                       ),
                       const Spacer(),
@@ -439,7 +437,24 @@ class _HistoryPageState extends State<BookingPage>
                           color: Colors.white.withOpacity(0.8),
                         ),
                         onPressed: () {
-                          // Navigate to today's bookings page
+                          // Check if already on BookingPage
+                          final bool isOnBookingPage =
+                              context.widget.runtimeType == BookingPage;
+
+                          if (!isOnBookingPage) {
+                            // On other pages --> Navigate to BookingPage
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const BookingPage(),
+                              ),
+                            );
+                          } else {
+                            // If already on BookingPage --> Go to Pending tab
+                            if (_tabController.index != 0) {
+                              _tabController.animateTo(0); // Go to Pending tab
+                            }
+                          }
                         },
                       ),
                       const SizedBox(width: 20),

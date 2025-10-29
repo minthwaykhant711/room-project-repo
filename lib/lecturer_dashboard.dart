@@ -58,7 +58,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
         children: [
           Container(
             decoration: const BoxDecoration(
-              color: Color.fromRGBO(0, 51, 102, 100),
+              color: Color(0xFF003366),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(30),
                 bottomRight: Radius.circular(30),
@@ -115,7 +115,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                         onPressed: () {
                           // Add function here
                         },
-                        icon: Icon(Icons.logout, color: Colors.white, size: 45),
+                        icon: Icon(Icons.logout, color: Colors.white, size: 40),
                       ),
                     ),
                   ],

@@ -104,6 +104,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
   // -------------------------------------------------------------------------
 
   // UPDATED WIDGET: A custom, auto-dismissing dialog that is also tappable
+  // UPDATED WIDGET: A custom, auto-dismissing dialog with larger icon and new styling
   Future<void> _showAutoDismissDialog({
     required BuildContext context,
     required IconData icon,
@@ -116,15 +117,12 @@ class _LecturerHistoryState extends State<LecturerHistory>
       builder: (ctx) {
         // Automatically close the dialog after 2 seconds
         Future.delayed(const Duration(seconds: 2), () {
-          // Add a check to prevent errors if the dialog was already closed by a tap
           if (Navigator.of(ctx, rootNavigator: true).canPop()) {
             Navigator.of(ctx, rootNavigator: true).pop(true);
           }
         });
 
-        // Wrap the Dialog with GestureDetector
         return GestureDetector(
-          // This function will be called when the user taps the dialog
           onTap: () {
             Navigator.of(ctx, rootNavigator: true).pop(true);
           },
@@ -139,16 +137,16 @@ class _LecturerHistoryState extends State<LecturerHistory>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircleAvatar(
-                    radius: 45,
+                    radius: 75,
                     backgroundColor: iconColor,
-                    child: Icon(icon, color: Colors.white, size: 60),
+                    child: Icon(icon, color: Colors.white, size: 120),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   Text(
                     message,
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
                     textAlign: TextAlign.center,
                   ),

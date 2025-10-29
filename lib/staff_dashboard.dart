@@ -9,7 +9,7 @@ class StaffDashboard extends StatefulWidget {
 }
 
 class _LecturerDashboardState extends State<StaffDashboard> {
-  String username = 'Aj.Surapong';
+  String username = 'Ryan';
 
   final List<Map<String, dynamic>> _statusCards = [
     {'title': 'Available', 'count': 5, 'titleColor': Colors.green},
@@ -58,7 +58,7 @@ class _LecturerDashboardState extends State<StaffDashboard> {
         children: [
           Container(
             decoration: const BoxDecoration(
-              color: Color.fromRGBO(0, 51, 102, 100),
+              color: Color(0xFF003366),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(30),
                 bottomRight: Radius.circular(30),
@@ -115,7 +115,7 @@ class _LecturerDashboardState extends State<StaffDashboard> {
                         onPressed: () {
                           // Add function here
                         },
-                        icon: Icon(Icons.logout, color: Colors.white, size: 45),
+                        icon: Icon(Icons.logout, color: Colors.white, size: 40),
                       ),
                     ),
                   ],

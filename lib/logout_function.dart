@@ -51,14 +51,14 @@ Future<void> showLogoutDialog(BuildContext context) async {
                           const Text(
                             'You are leaving...',
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: 23,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const Text(
                             'Are you sure?',
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: 25,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

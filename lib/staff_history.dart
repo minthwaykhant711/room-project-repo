@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
+import 'staff_dashboard.dart'; // class: StaffDashboard
 
 class StaffHistory extends StatefulWidget {
   const StaffHistory({super.key});
@@ -11,9 +12,6 @@ class StaffHistory extends StatefulWidget {
 
 class _StaffHistoryState extends State<StaffHistory>
     with SingleTickerProviderStateMixin {
-  // -------------------------------------------------------------------------
-  // VARIABLES & CONTROLLERS
-  // -------------------------------------------------------------------------
   late TabController _tabController;
   final String username = 'Staff';
 
@@ -29,16 +27,14 @@ class _StaffHistoryState extends State<StaffHistory>
     super.dispose();
   }
 
-  // -------------------------------------------------------------------------
   // Sample Data
-  // -------------------------------------------------------------------------
   final List<Map<String, dynamic>> _allBookings = [
     {
       'room': 'Study Room A',
       'date': 'Mon, Oct 20',
       'time': '08:00 - 10:00',
       'status': 0,
-      'approver': '', // Approver Empty = Pending
+      'approver': '',
       'booked_by': 'Lisa',
     },
     {
@@ -61,8 +57,8 @@ class _StaffHistoryState extends State<StaffHistory>
       'room': 'Study Room A',
       'date': 'Mon, Oct 6',
       'time': '08:00 - 10:00',
-      'status': 1, // 1 = Approved
-      'approver': 'Ajarn Surapong', // Has Approver = History
+      'status': 1,
+      'approver': 'Ajarn Surapong',
       'booked_by': 'Lisa',
     },
     {
@@ -77,9 +73,10 @@ class _StaffHistoryState extends State<StaffHistory>
       'room': 'Study Room C',
       'date': 'Tue, Sep 30',
       'time': '13:00 - 15:00',
-      'status': 0, // 0 = Rejected
+      'status': 0, // Rejected
       'approver': 'Ajarn Nick',
       'booked_by': 'Emma',
+      'reason': 'Exceeded booking limit for this week',
     },
     {
       'room': 'Meeting Room A',
@@ -99,7 +96,7 @@ class _StaffHistoryState extends State<StaffHistory>
     },
   ];
 
-  // -------------------------------------------------------------------------
+  // Booking card
   Widget _buildBookingCard(Map<String, dynamic> b) {
     final int status = b['status'] as int;
     final bool isPending = status == 0 && b['approver'].isEmpty;
@@ -132,44 +129,28 @@ class _StaffHistoryState extends State<StaffHistory>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Title + Room Name ---
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black,
-                          ),
-                          children: [
-                            const TextSpan(text: 'Session in '),
-                            TextSpan(
-                              text: b['room'],
-                              style: const TextStyle(color: Colors.orange),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
+            // Room name
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 16, color: Colors.black),
+                children: [
+                  const TextSpan(text: 'Session in '),
+                  TextSpan(
+                    text: b['room'],
+                    style: const TextStyle(color: Colors.orange),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 8),
 
-            // --- Date Row ---
+            // Date & time
             Row(
               children: [
                 const Icon(Icons.calendar_month_outlined, size: 20),
                 const SizedBox(width: 6),
                 Text(b['date'], style: const TextStyle(fontSize: 14)),
                 const SizedBox(width: 20),
-                // --- Time Row ---
                 const Icon(Icons.access_time, size: 18),
                 const SizedBox(width: 6),
                 Text(b['time'], style: const TextStyle(fontSize: 14)),
@@ -178,7 +159,7 @@ class _StaffHistoryState extends State<StaffHistory>
 
             const SizedBox(height: 8),
 
-            // --- Booked by Row ---
+            // Booked by
             Row(
               children: [
                 const Icon(Icons.person_outline, size: 20),
@@ -200,7 +181,7 @@ class _StaffHistoryState extends State<StaffHistory>
 
             const SizedBox(height: 7),
 
-            // --- Status Row ---
+            // Status
             Row(
               children: [
                 Icon(statusIcon, color: statusColor, size: 20),
@@ -222,6 +203,28 @@ class _StaffHistoryState extends State<StaffHistory>
                 ),
               ],
             ),
+
+            // ─── REJECTION REASON (only for rejected bookings) ───────────────
+            if (status == 0 && b['approver'].isNotEmpty && b.containsKey('reason')) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline, size: 20, color: Colors.redAccent),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Reason: ${b['reason']}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                        
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -229,256 +232,157 @@ class _StaffHistoryState extends State<StaffHistory>
   }
 
   Widget _buildEmptyState(String title) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-        const SizedBox(height: 16),
-        Text(
-          '$title is empty',
-          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text('$title is empty', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            Text('No ${title.toLowerCase()} bookings found', style: TextStyle(color: Colors.grey[500])),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'No ${title.toLowerCase()} bookings found',
-          style: TextStyle(color: Colors.grey[500]),
-        ),
-      ],
-    ),
-  );
+      );
 
   // -------------------------------------------------------------------------
-  // MAIN BUILD METHOD
+  // MAIN BUILD
   // -------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    // Filter bookings into Pending and History lists
     final pending = _allBookings.where((b) => b['approver'].isEmpty).toList();
-    final history = _allBookings
-        .where((b) => b['approver'].isNotEmpty)
-        .toList();
+    final history = _allBookings.where((b) => b['approver'].isNotEmpty).toList();
 
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(217, 217, 217, 1),
+      backgroundColor: const Color(0xFFD9D9D9),
       extendBody: true,
-      body: Stack(
-        children: [
-          Column(
+
+      // Bottom Nav
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          height: 56,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // --- HEADER SECTION ---
-              Container(
-                decoration: const BoxDecoration(
-                  color: Color.fromRGBO(0, 51, 102, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(color: Colors.black, width: 2),
-                  ),
-                ),
-                width: double.infinity,
-                height: 200,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 50),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // --- Greeting and title ---
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              RichText(
-                                text: TextSpan(
-                                  children: [
-                                    const TextSpan(
-                                      text: 'Hi',
-                                      style: TextStyle(
-                                        fontSize: 28,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: ', $username',
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Text(
-                                'Bookings',
-                                style: TextStyle(
-                                  fontSize: 25,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          // --- Logout Button ---
-                          IconButton(
-                            onPressed: () => showLogoutDialog(context),
-                            icon: const Icon(
-                              Icons.logout_rounded,
-                              color: Colors.white,
-                              size: 40,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // --- TabBar: Pending & History ---
-                    Padding(
-                      padding: const EdgeInsets.only(left: 20.0),
-                      child: SizedBox(
-                        width: 160,
-                        child: TabBar(
-                          controller: _tabController,
-                          labelColor: Colors.amber,
-                          unselectedLabelColor: Colors.white70,
-                          indicatorColor: Colors.amber,
-                          indicatorSize: TabBarIndicatorSize.label,
-                          dividerColor: Colors.transparent,
-                          labelStyle: const TextStyle(fontSize: 18),
-                          labelPadding: const EdgeInsets.symmetric(
-                            horizontal: 0,
-                          ),
-                          tabs: const [
-                            Tab(text: 'Pending'),
-                            Tab(text: 'History'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
+              IconButton(
+                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffDashboard())),
               ),
-              // =============================================================
-              // TAB CONTENT SECTION
-              // =============================================================
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // --- Pending Tab ---
-                    pending.isEmpty
-                        ? _buildEmptyState('Pending')
-                        : ListView.builder(
-                            padding: const EdgeInsets.only(
-                              top: 10,
-                              bottom: 100,
-                            ),
-                            itemCount: pending.length,
-                            itemBuilder: (_, i) =>
-                                _buildBookingCard(pending[i]),
-                          ),
-
-                    // --- History Tab ---
-                    history.isEmpty
-                        ? _buildEmptyState('History')
-                        : ListView.builder(
-                            padding: const EdgeInsets.only(
-                              top: 10,
-                              bottom: 100,
-                            ),
-                            itemCount: history.length,
-                            itemBuilder: (_, i) =>
-                                _buildBookingCard(history[i]),
-                          ),
-                  ],
-                ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('You are already on the Booking page'),
+                      duration: const Duration(milliseconds: 1200),
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                },
               ),
             ],
           ),
+        ),
+      ),
 
-          // --- BOTTOM NAVIGATION BAR ---
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
-                child: Container(
-                  height: 65,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
+      // Body
+      body: Column(
+        children: [
+          // Header
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF003366),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+              border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
+            ),
+            width: double.infinity,
+            height: 200,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 50),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const SizedBox(width: 20),
-                      // --- Back Button ---
-                      IconButton(
-                        icon: Icon(
-                          Icons.arrow_back_rounded,
-                          size: 40,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {
-                          Navigator.maybePop(context);
-                        },
+                      // Greeting
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                const TextSpan(
+                                  text: 'Hi',
+                                  style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                                TextSpan(text: ', $username', style: const TextStyle(fontSize: 28, color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                          const Text('Bookings', style: TextStyle(fontSize: 25, color: Colors.white)),
+                        ],
                       ),
-                      const Spacer(),
-                      // --- Home Button ---
                       IconButton(
-                        icon: Icon(
-                          Icons.home_rounded,
-                          size: 40,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {
-                          // Navigate to StudentBrowse Page
-                        },
+                        onPressed: () => showLogoutDialog(context),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
                       ),
-                      const Spacer(),
-                      // --- Today Button ---
-                      IconButton(
-                        icon: Icon(
-                          Icons.today_rounded,
-                          size: 40,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {
-                          // Check if already on StaffHistory Page
-                          final bool isOnBookingPage =
-                              context.widget.runtimeType == StaffHistory;
-
-                          if (!isOnBookingPage) {
-                            // On other pages --> Navigate to StaffHistory Page
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const StaffHistory(),
-                              ),
-                            );
-                          } else {
-                            // If already on StaffHistory Page --> Go to Pending tab
-                            if (_tabController.index != 0) {
-                              _tabController.animateTo(0); // Go to Pending tab
-                            }
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 20),
                     ],
                   ),
                 ),
-              ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.only(left: 20.0),
+                  child: SizedBox(
+                    width: 160,
+                    child: TabBar(
+                      controller: _tabController,
+                      labelColor: Colors.amber,
+                      unselectedLabelColor: Colors.white70,
+                      indicatorColor: Colors.amber,
+                      indicatorSize: TabBarIndicatorSize.label,
+                      dividerColor: Colors.transparent,
+                      labelStyle: const TextStyle(fontSize: 18),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 0),
+                      tabs: const [Tab(text: 'Pending'), Tab(text: 'History')],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Tab Views
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                pending.isEmpty
+                    ? _buildEmptyState('Pending')
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(top: 10, bottom: 100),
+                        itemCount: pending.length,
+                        itemBuilder: (_, i) => _buildBookingCard(pending[i]),
+                      ),
+                history.isEmpty
+                    ? _buildEmptyState('History')
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(top: 10, bottom: 100),
+                        itemCount: history.length,
+                        itemBuilder: (_, i) => _buildBookingCard(history[i]),
+                      ),
+              ],
             ),
           ),
         ],

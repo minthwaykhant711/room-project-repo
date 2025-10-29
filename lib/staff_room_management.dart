@@ -94,7 +94,7 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                 ),
                 onPressed: () {
                   // Go to StaffDashboard
-                  Navigator.pushReplacement(
+                  Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffDashboard()),
                   );
@@ -104,7 +104,7 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
                 onPressed: () {
                   // Go to StaffHistory
-                  Navigator.pushReplacement(
+                  Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffHistory()),
                   );
@@ -362,21 +362,21 @@ class _RoomCard extends StatelessWidget {
                   Text(
                     data.name,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Capacity : ${data.capacity} people',
-                    style: const TextStyle(color: Colors.black87),
+                    style: const TextStyle(color: Colors.black87, fontSize: 15),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
                       const Text(
                         'Status : ',
-                        style: TextStyle(color: Colors.black87),
+                        style: TextStyle(color: Colors.black87, fontSize: 15),
                       ),
                       Text(
                         isAvailable ? 'Available' : 'Disabled',

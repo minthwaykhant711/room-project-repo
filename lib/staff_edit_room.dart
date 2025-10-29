@@ -52,7 +52,7 @@ class StaffEditRoomPage extends StatelessWidget {
                 ),
                 onPressed: () {
                   // Go to StaffDashboard
-                  Navigator.pushReplacement(
+                  Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffDashboard()),
                   );
@@ -62,7 +62,7 @@ class StaffEditRoomPage extends StatelessWidget {
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
                 onPressed: () {
                   // Go to StaffHistory
-                  Navigator.pushReplacement(
+                  Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffHistory()),
                   );

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/logout_function.dart';
 import 'staff_add_room.dart';
 import 'staff_edit_room.dart';
+import 'staff_dashboard.dart'; // class: StaffDashboard
+import 'staff_history.dart'; // class: StaffHistory
 
 class StaffRoomManagementPage extends StatefulWidget {
   const StaffRoomManagementPage({super.key});
   @override
-  State<StaffRoomManagementPage> createState() => _StaffRoomManagementPageState();
+  State<StaffRoomManagementPage> createState() =>
+      _StaffRoomManagementPageState();
 }
 
 class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
@@ -18,15 +22,29 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
     } else if (name.toLowerCase().startsWith('multimedia room a')) {
       return 'assets/images/multi room A.jpg';
     } else {
-      // Meeting Room A (fallback)
       return 'assets/images/study room B.jpg';
     }
   }
 
   final List<_RoomData> rooms = [
-    _RoomData(name: 'Meeting Room A',    capacity: 8,  status: RoomStatus.available,  imagePath: 'assets/images/study room B.jpg'),
-    _RoomData(name: 'Study Room A',      capacity: 4,  status: RoomStatus.disabled,   imagePath: 'assets/images/study room A.jpg'),
-    _RoomData(name: 'Multimedia Room A', capacity: 11, status: RoomStatus.available,  imagePath: 'assets/images/multi room A.jpg'),
+    _RoomData(
+      name: 'Meeting Room A',
+      capacity: 8,
+      status: RoomStatus.available,
+      imagePath: 'assets/images/study room B.jpg',
+    ),
+    _RoomData(
+      name: 'Study Room A',
+      capacity: 4,
+      status: RoomStatus.disabled,
+      imagePath: 'assets/images/study room A.jpg',
+    ),
+    _RoomData(
+      name: 'Multimedia Room A',
+      capacity: 11,
+      status: RoomStatus.available,
+      imagePath: 'assets/images/multi room A.jpg',
+    ),
   ];
 
   void toggleStatus(int i) {
@@ -41,9 +59,10 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    final headerHeight = MediaQuery.of(context).size.height * 0.30;
+    final headerHeight = MediaQuery.of(context).size.height * 0.26;
 
     return Scaffold(
+      // ===== BOTTOM NAV BAR =====
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -52,84 +71,177 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
-              IconButton(icon: const Icon(Icons.home_filled, color: Colors.white, size: 28), onPressed: () {}),
-              IconButton(icon: const Icon(Icons.calendar_today, color: Colors.white), onPressed: () {}),
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  // Go to StaffDashboard
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffDashboard()),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                onPressed: () {
+                  // Go to StaffHistory
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffHistory()),
+                  );
+                },
+              ),
             ],
           ),
         ),
       ),
 
+      // ===== PAGE BODY =====
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header + Add New Room
-          SizedBox(
-            height: headerHeight,
+          // ===== HEADER (modified like LecturerHistory) =====
+          Container(
+            decoration: const BoxDecoration(
+              color: kNavy,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
+            ),
             width: double.infinity,
-            child: Stack(
+            height: headerHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: kNavy,
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-                  ),
-                ),
-                Positioned.fill(
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Column(
+                const SizedBox(height: 60),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Hi, Staff / Room Management
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Hi, Staff', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 2),
-                          const Text('Room Management', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 46),
-                          GestureDetector(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffAddRoomPage())),
-                            child: Container(
-                              height: 46,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFC9C0C0),
-                                borderRadius: BorderRadius.circular(28),
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  SizedBox(width: 14),
-                                  CircleAvatar(radius: 14, backgroundColor: Colors.grey, child: Icon(Icons.add, color: Colors.white, size: 18)),
-                                  SizedBox(width: 10),
-                                  Text('Add New Room', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-                                  SizedBox(width: 16),
-                                ],
-                              ),
+                          RichText(
+                            text: const TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Hi',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ', Staff',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          const Text(
+                            'Room Management',
+                            style: TextStyle(fontSize: 25, color: Colors.white),
                           ),
                         ],
                       ),
-                    ),
+
+                      // Logout button
+                      IconButton(
+                        onPressed: () => showLogoutDialog(context),
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Positioned(
-                  right: 8, top: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: IconButton(icon: const Icon(Icons.logout, color: Colors.white, size: 26), onPressed: () {}),
+
+                // Add New Room button
+                const SizedBox(height: 35),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StaffAddRoomPage(),
+                      ),
+                    ),
+                    child: Container(
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFC9C0C0),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          SizedBox(width: 14),
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.grey,
+                            child: Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Add New Room',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // List
+          // ===== ROOM LIST =====
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -139,7 +251,6 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                 data: rooms[i],
                 onToggle: () => toggleStatus(i),
                 onEdit: () {
-                  // navigate to Edit page with the SAME details & image
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -147,7 +258,8 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                         initialName: rooms[i].name,
                         initialCapacity: '${rooms[i].capacity} People',
                         initialDescription: _descFor(rooms[i].name),
-                        imagePath: rooms[i].imagePath ?? _imageFor(rooms[i].name),
+                        imagePath:
+                            rooms[i].imagePath ?? _imageFor(rooms[i].name),
                       ),
                     ),
                   );
@@ -161,13 +273,15 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
   }
 
   String _descFor(String name) {
-    if (name.toLowerCase().contains('study')) return 'Quiet Room, Aircon, Whiteboard';
-    if (name.toLowerCase().contains('multimedia')) return 'TV, Aircon, Projects available';
+    if (name.toLowerCase().contains('study'))
+      return 'Quiet Room, Aircon, Whiteboard';
+    if (name.toLowerCase().contains('multimedia'))
+      return 'TV, Aircon, Projects available';
     return 'Quiet Room, Aircon, Projector';
   }
 }
 
-/* ===== models/ui ===== */
+/* ===== MODELS / ROOM CARD ===== */
 
 enum RoomStatus { available, disabled }
 
@@ -184,40 +298,52 @@ class _RoomData {
     this.imagePath,
   });
 
-  _RoomData copyWith({String? name, int? capacity, RoomStatus? status, String? imagePath}) {
+  _RoomData copyWith({
+    String? name,
+    int? capacity,
+    RoomStatus? status,
+    String? imagePath,
+  }) {
     return _RoomData(
       name: name ?? this.name,
       capacity: capacity ?? this.capacity,
       status: status ?? this.status,
       imagePath: imagePath ?? this.imagePath,
     );
-    }
+  }
 }
 
 class _RoomCard extends StatelessWidget {
-  const _RoomCard({required this.data, required this.onToggle, required this.onEdit});
+  const _RoomCard({
+    required this.data,
+    required this.onToggle,
+    required this.onEdit,
+  });
   final _RoomData data;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
 
   static const kGreen = Color(0xFF1FA22A);
-  static const kRed   = Color(0xFFDA351C);
+  static const kRed = Color(0xFFDA351C);
 
   @override
   Widget build(BuildContext context) {
     final isAvailable = data.status == RoomStatus.available;
-    final img = data.imagePath ??
+    final img =
+        data.imagePath ??
         (data.name.toLowerCase().contains('study a')
             ? 'assets/images/study room A.jpg'
             : data.name.toLowerCase().contains('multimedia')
-                ? 'assets/images/multi room A.jpg'
-                : 'assets/images/study room B.jpg');
+            ? 'assets/images/multi room A.jpg'
+            : 'assets/images/study room B.jpg');
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -233,15 +359,32 @@ class _RoomCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(data.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  Text(
+                    data.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Capacity : ${data.capacity} people', style: const TextStyle(color: Colors.black87)),
+                  Text(
+                    'Capacity : ${data.capacity} people',
+                    style: const TextStyle(color: Colors.black87),
+                  ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Text('Status : ', style: TextStyle(color: Colors.black87)),
-                      Text(isAvailable ? 'Available' : 'Disabled',
-                          style: TextStyle(color: isAvailable ? kGreen : kRed, fontWeight: FontWeight.w700)),
+                      const Text(
+                        'Status : ',
+                        style: TextStyle(color: Colors.black87),
+                      ),
+                      Text(
+                        isAvailable ? 'Available' : 'Disabled',
+                        style: TextStyle(
+                          color: isAvailable ? kGreen : kRed,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -251,11 +394,19 @@ class _RoomCard extends StatelessWidget {
             Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // EDIT (clickable)
-                _roundIcon(icon: Icons.edit_outlined, bg: const Color(0xFFF0F0F0), fg: Colors.black87, onTap: onEdit),
+                _roundIcon(
+                  icon: Icons.edit_outlined,
+                  bg: const Color(0xFFF0F0F0),
+                  fg: Colors.black87,
+                  onTap: onEdit,
+                ),
                 const SizedBox(height: 10),
-                // POWER (toggle)
-                _roundIcon(icon: Icons.power_settings_new, bg: isAvailable ? kRed : kGreen, fg: Colors.white, onTap: onToggle),
+                _roundIcon(
+                  icon: Icons.power_settings_new,
+                  bg: isAvailable ? kRed : kGreen,
+                  fg: Colors.white,
+                  onTap: onToggle,
+                ),
               ],
             ),
           ],
@@ -264,11 +415,21 @@ class _RoomCard extends StatelessWidget {
     );
   }
 
-  Widget _roundIcon({required IconData icon, required Color bg, required Color fg, required VoidCallback onTap}) {
+  Widget _roundIcon({
+    required IconData icon,
+    required Color bg,
+    required Color fg,
+    required VoidCallback onTap,
+  }) {
     return Container(
-      width: 36, height: 36,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-      child: IconButton(padding: EdgeInsets.zero, icon: Icon(icon, color: fg, size: 20), onPressed: onTap),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: fg, size: 20),
+        onPressed: onTap,
+      ),
     );
   }
 }

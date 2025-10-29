@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/lecturer_browsing.dart';
 import 'package:flutter_application_1/logout_function.dart';
 
 class LecturerDashboard extends StatefulWidget {
@@ -147,7 +148,12 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
               SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () {
-                  // Add function here
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LecturerBrowsing(),
+                    ),
+                  );
                 },
                 icon: const Icon(
                   Icons.exit_to_app_rounded,
@@ -200,7 +206,22 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                 icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                 onPressed: () => Navigator.maybePop(context),
               ),
-              const Icon(Icons.home_filled, color: Colors.white, size: 28),
+              IconButton(
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LecturerDashboard(),
+                    ),
+                  );
+                },
+              ),
+
               const Icon(Icons.calendar_today, color: Colors.white),
             ],
           ),

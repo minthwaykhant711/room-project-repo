@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/logout_function.dart';
+import 'package:flutter_application_1/staff_dashboard.dart';
+import 'package:flutter_application_1/staff_history.dart';
 
 class StaffBrowsing extends StatefulWidget {
   const StaffBrowsing({super.key});
@@ -100,28 +103,6 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
     'disabled',
   ];
 
-  String selectedFilter = 'None';
-
-  List<Map<String, dynamic>> getFilteredRooms() {
-    if (selectedFilter == 'None') return rooms;
-
-    return rooms
-        .asMap()
-        .entries
-        .where((entry) {
-          final idx = entry.key;
-          final room = entry.value;
-          final slot = selectedTimes[idx] ?? timeSlots.first;
-          final statuses = room['statuses'] as Map<String, dynamic>?;
-          final status = statuses != null
-              ? (statuses[slot] as String? ?? 'unknown')
-              : 'unknown';
-          return status == selectedFilter;
-        })
-        .map((e) => e.value)
-        .toList();
-  }
-
   String selectedCategory = 'Meeting';
 
   @override
@@ -136,32 +117,48 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          height: 50,
-          margin: const EdgeInsets.symmetric(horizontal: 35, vertical: 10),
+          height: 56,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
           decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 162, 159, 159),
+            color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 2),
+                blurRadius: 8,
+                offset: Offset(0, 3),
               ),
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                  size: 26,
-                ),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                 onPressed: () => Navigator.maybePop(context),
               ),
-              const Icon(Icons.home_filled, color: Colors.white, size: 28),
-              const Icon(Icons.calendar_today, color: Colors.white, size: 26),
+              IconButton(
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffDashboard()),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffHistory()),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -217,7 +214,7 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
                           color: Colors.white,
                           size: 28,
                         ),
-                        onPressed: () {},
+                        onPressed: () => showLogoutDialog(context),
                       ),
                     ),
                   ],
@@ -257,42 +254,6 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        Spacer(),
-
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedFilter,
-                              items: filters.map((f) {
-                                return DropdownMenuItem<String>(
-                                  value: f,
-                                  child: Text(
-                                    f == 'None'
-                                        ? 'Filter: None'
-                                        : f[0].toUpperCase() + f.substring(1),
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value == null) return;
-                                setState(() {
-                                  selectedFilter = value;
-                                });
-                              },
-                            ),
                           ),
                         ),
                       ],
@@ -335,31 +296,25 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
           Expanded(
             child: Builder(
               builder: (context) {
-                final filteredRooms = getFilteredRooms();
-
                 return ListView.builder(
-                  scrollDirection: Axis.horizontal,
+                  scrollDirection:
+                      Axis.horizontal, // Make list scroll horizontally
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: filteredRooms.length,
+                  itemCount: rooms.length,
                   itemBuilder: (context, index) {
-                    final room = filteredRooms[index];
-                    final originalIndex = rooms.indexOf(room);
-                    final currentSlot =
-                        selectedTimes[originalIndex] ?? timeSlots.first;
-
+                    final room = rooms[index];
+                    final currentSlot = selectedTimes[index];
                     final currentStatus =
                         room['statuses'][currentSlot] ?? 'unknown';
-                    // final isAvailable = currentStatus == 'available';
+                    final isAvailable = currentStatus == 'available';
                     return Container(
                       width: 320,
                       height: 420,
 
                       margin: EdgeInsets.only(
-                        // left: index == 0 ? 4 : 12,
-                        // right: index == rooms.length - 1 ? 4 : 0,
                         left: index == 0 ? 4 : 12,
-                        right: index == filteredRooms.length - 1 ? 4 : 0,
+                        right: index == rooms.length - 1 ? 4 : 0,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,

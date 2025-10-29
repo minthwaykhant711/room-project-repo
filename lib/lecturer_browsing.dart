@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/lecturer_dashboard.dart';
+import 'package:flutter_application_1/lecturer_history.dart';
 import 'package:flutter_application_1/logout_function.dart';
 
 class LecturerBrowsing extends StatefulWidget {
@@ -152,7 +153,19 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 },
               ),
 
-              const Icon(Icons.calendar_today, color: Colors.white),
+              IconButton(
+                icon: const Icon(
+                  Icons.calendar_today,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LecturerHistory()),
+                  );
+                },
+              ),
             ],
           ),
         ),

@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/lecturer_browsing.dart';
+import 'package:flutter_application_1/lecturer_history.dart';
 import 'package:flutter_application_1/logout_function.dart';
 
 class LecturerDashboard extends StatefulWidget {
@@ -222,7 +223,19 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                 },
               ),
 
-              const Icon(Icons.calendar_today, color: Colors.white),
+              IconButton(
+                icon: const Icon(
+                  Icons.calendar_today,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LecturerHistory()),
+                  );
+                },
+              ),
             ],
           ),
         ),

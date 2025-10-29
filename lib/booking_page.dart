@@ -409,7 +409,7 @@ class _HistoryPageState extends State<BookingPage>
                       IconButton(
                         icon: Icon(
                           Icons.arrow_back_rounded,
-                          size: 36,
+                          size: 40,
                           color: Colors.white.withOpacity(0.8),
                         ),
                         onPressed: () {
@@ -423,7 +423,7 @@ class _HistoryPageState extends State<BookingPage>
                       IconButton(
                         icon: Icon(
                           Icons.home_rounded,
-                          size: 36,
+                          size: 40,
                           color: Colors.white.withOpacity(0.8),
                         ),
                         onPressed: () {
@@ -435,7 +435,7 @@ class _HistoryPageState extends State<BookingPage>
                       IconButton(
                         icon: Icon(
                           Icons.today_rounded,
-                          size: 36,
+                          size: 40,
                           color: Colors.white.withOpacity(0.8),
                         ),
                         onPressed: () {

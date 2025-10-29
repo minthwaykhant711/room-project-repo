@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/logout_function.dart';
 
 class LecturerDashboard extends StatefulWidget {
   const LecturerDashboard({super.key});
@@ -77,7 +78,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(left: 25),
+                      padding: const EdgeInsets.all(16.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -87,7 +88,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                 TextSpan(
                                   text: 'Hi',
                                   style: TextStyle(
-                                    fontSize: 30,
+                                    fontSize: 28,
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -95,16 +96,17 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                 TextSpan(
                                   text: ', $username',
                                   style: TextStyle(
-                                    fontSize: 30,
+                                    fontSize: 28,
                                     color: Colors.white,
                                   ),
                                 ),
                               ],
                             ),
                           ),
+                          SizedBox(height: 8),
                           Text(
                             "Lecturer's Dashboard",
-                            style: TextStyle(fontSize: 28, color: Colors.white),
+                            style: TextStyle(fontSize: 23, color: Colors.white),
                           ),
                         ],
                       ),
@@ -112,10 +114,8 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                     Padding(
                       padding: EdgeInsets.only(right: 20),
                       child: IconButton(
-                        onPressed: () {
-                          // Add function here
-                        },
-                        icon: Icon(Icons.logout, color: Colors.white, size: 40),
+                        onPressed: () => showLogoutDialog(context),
+                        icon: Icon(Icons.logout, color: Colors.white, size: 35),
                       ),
                     ),
                   ],
@@ -177,57 +177,31 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
           ),
         ],
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(20),
+      bottomNavigationBar: SafeArea(
+        top: false,
         child: Container(
-          height: 65,
+          height: 56,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            color: Colors.black.withOpacity(0.8),
-            boxShadow: [
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
               ),
             ],
           ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              SizedBox(width: 20),
               IconButton(
-                onPressed: () {
-                  // Add function here
-                },
-                icon: Icon(
-                  Icons.arrow_back_rounded,
-                  size: 40,
-                  color: Colors.white.withOpacity(0.8),
-                ),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.maybePop(context),
               ),
-              Spacer(),
-              IconButton(
-                onPressed: () {
-                  // Add function here
-                },
-                icon: Icon(
-                  Icons.home_rounded,
-                  size: 40,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-              ),
-              Spacer(),
-              IconButton(
-                onPressed: () {
-                  // Add function here
-                },
-                icon: Icon(
-                  Icons.today_rounded,
-                  size: 40,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-              ),
-              SizedBox(width: 20),
+              const Icon(Icons.home_filled, color: Colors.white, size: 28),
+              const Icon(Icons.calendar_today, color: Colors.white),
             ],
           ),
         ),

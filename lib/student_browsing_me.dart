@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/student_browsing_multi.dart';
 import 'dart:ui';
+import 'package:flutter_application_1/logout_function.dart';
 
 import 'package:flutter_application_1/student_browsing_study.dart';
 
@@ -128,32 +129,28 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          height: 50,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          height: 56,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
           decoration: BoxDecoration(
-            color: Colors.grey,
+            color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 2),
+                blurRadius: 8,
+                offset: Offset(0, 3),
               ),
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                  size: 26,
-                ),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                 onPressed: () => Navigator.maybePop(context),
               ),
               const Icon(Icons.home_filled, color: Colors.white, size: 28),
-              const Icon(Icons.calendar_today, color: Colors.white, size: 26),
+              const Icon(Icons.calendar_today, color: Colors.white),
             ],
           ),
         ),
@@ -208,7 +205,7 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                           color: Colors.white,
                           size: 28,
                         ),
-                        onPressed: () {},
+                        onPressed: () => showLogoutDialog(context),
                       ),
                     ),
                   ],

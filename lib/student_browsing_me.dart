@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/student_browsing_multi.dart';
 import 'dart:ui';
+
+import 'package:flutter_application_1/student_browsing_study.dart';
 
 class StudentBrowsingMe extends StatefulWidget {
   const StudentBrowsingMe({super.key});
@@ -94,6 +97,26 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
   }
 
   String selectedCategory = 'Meeting';
+  void _navigateToCategory(String cat) {
+    if (cat == selectedCategory) return; // already here
+
+    if (cat == 'Meeting') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const StudentBrowsingMe()),
+      );
+    } else if (cat == 'Study') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const StudentBrowsingStudy()),
+      );
+    } else if (cat == 'Multimedia') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const StudentBrowsingMulti()),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -248,9 +271,7 @@ class _StudentBrowsingMeState extends State<StudentBrowsingMe> {
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : Colors.black87,
                     ),
-                    onSelected: (_) {
-                      setState(() => selectedCategory = cat);
-                    },
+                    onSelected: (_) => _navigateToCategory(cat),
                   ),
                 );
               }).toList(),

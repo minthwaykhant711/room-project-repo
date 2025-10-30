@@ -11,10 +11,22 @@ class LecturerBrowsing extends StatefulWidget {
 }
 
 class _LecturerBrowsingState extends State<LecturerBrowsing> {
- 
   String _formatHeaderDate(DateTime d) {
-    const w = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
-    const m = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const w = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const m = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
     final weekday = w[(d.weekday + 6) % 7];
     final month = m[d.month - 1];
     return '$weekday, $month ${d.day}, ${d.year}';
@@ -23,15 +35,19 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
   // Room status colors
   Color getStatusColor(String status) {
     switch (status) {
-      case 'available': return Colors.teal;
-      case 'pending':   return Colors.orange;
-      case 'reserved':  return const Color.fromARGB(255, 12, 143, 209);
-      case 'disabled':  return Colors.red;
-      default:          return Colors.grey;
+      case 'available':
+        return Colors.teal;
+      case 'pending':
+        return Colors.orange;
+      case 'reserved':
+        return const Color.fromARGB(255, 12, 143, 209);
+      case 'disabled':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
- 
   final List<String> categories = ['Study', 'Multimedia', 'Meeting'];
   String selectedCategory = 'Meeting';
 
@@ -55,10 +71,22 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
           '13:00 - 14:00': 'pending',
           '14:00 - 16:00': 'disabled',
         },
-        'image': 'assets/images/study room A.jpg',
+        'image': 'assets/images/study room B.jpg',
       },
       {
         'name': 'Study Room B',
+        'details': 'Quiet, Whiteboard',
+        'max': 6,
+        'statuses': {
+          '8:00 - 10:00': 'pending',
+          '10:00 - 12:00': 'available',
+          '13:00 - 14:00': 'reserved',
+          '14:00 - 16:00': 'disabled',
+        },
+        'image': 'assets/images/study room B.jpg',
+      },
+      {
+        'name': 'Study Room C',
         'details': 'Quiet, Whiteboard',
         'max': 6,
         'statuses': {
@@ -73,20 +101,32 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
     'Multimedia': [
       {
         'name': 'Multimedia Room A',
-        'details': 'TV, Projector, Aircon',
-        'max': 8,
+        'details': 'TV, Aircon, Netflix, Prime',
+        'max': 6,
         'statuses': {
-          '8:00 - 10:00': 'reserved',
-          '10:00 - 12:00': 'available',
-          '13:00 - 14:00': 'pending',
+          '8:00 - 10:00': 'available',
+          '10:00 - 12:00': 'pending',
+          '13:00 - 14:00': 'reserved',
           '14:00 - 16:00': 'disabled',
         },
         'image': 'assets/images/multi room A.jpg',
       },
       {
         'name': 'Multimedia Room B',
-        'details': 'TV, Aircon',
-        'max': 6,
+        'details': 'TV, Aircon, Netflix, Prime',
+        'max': 4,
+        'statuses': {
+          '8:00 - 10:00': 'available',
+          '10:00 - 12:00': 'pending',
+          '13:00 - 14:00': 'reserved',
+          '14:00 - 16:00': 'disabled',
+        },
+        'image': 'assets/images/multi room A.jpg',
+      },
+      {
+        'name': 'Multimedia Room C',
+        'details': 'TV, Aircon, Netflix, Prime',
+        'max': 8,
         'statuses': {
           '8:00 - 10:00': 'available',
           '10:00 - 12:00': 'pending',
@@ -123,8 +163,8 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
       },
       {
         'name': 'Meeting Room C',
-        'details': 'TV, Aircon, 8 seats',
-        'max': 8,
+        'details': 'Whiteboard, Aircon',
+        'max': 4,
         'statuses': {
           '8:00 - 10:00': 'available',
           '10:00 - 12:00': 'pending',
@@ -144,7 +184,10 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
     super.initState();
     selectedTimesByCat = {
       for (final cat in categories)
-        cat: {for (int i = 0; i < roomsByCategory[cat]!.length; i++) i: timeSlots.first}
+        cat: {
+          for (int i = 0; i < roomsByCategory[cat]!.length; i++)
+            i: timeSlots.first,
+        },
     };
   }
 
@@ -165,7 +208,13 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -175,11 +224,17 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 onPressed: () => Navigator.maybePop(context),
               ),
               IconButton(
-                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => const LecturerDashboard()),
+                    MaterialPageRoute(
+                      builder: (_) => const LecturerDashboard(),
+                    ),
                   );
                 },
               ),
@@ -234,24 +289,45 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 18,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(28),
-                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 30, height: 30,
-                          decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
-                          child: const Icon(Icons.calendar_month, color: Colors.white, size: 25),
+                          width: 30,
+                          height: 30,
+                          decoration: const BoxDecoration(
+                            color: Colors.black87,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.calendar_month,
+                            color: Colors.white,
+                            size: 25,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Text(
                           _formatHeaderDate(DateTime.now()),
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
                         ),
                       ],
                     ),
@@ -272,14 +348,19 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 final isSelected = cat == selectedCategory;
                 return Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(left: i == 0 ? 0 : 8, right: i == categories.length - 1 ? 0 : 8),
+                    padding: EdgeInsets.only(
+                      left: i == 0 ? 0 : 8,
+                      right: i == categories.length - 1 ? 0 : 8,
+                    ),
                     child: ChoiceChip(
                       showCheckmark: false,
                       label: Center(child: Text(cat.toLowerCase())),
                       selected: isSelected,
                       backgroundColor: Colors.white,
                       selectedColor: const Color(0xFF184D83),
-                      shape: const StadiumBorder(side: BorderSide(color: Color(0xFFBDBDBD), width: 1)),
+                      shape: const StadiumBorder(
+                        side: BorderSide(color: Color(0xFFBDBDBD), width: 1),
+                      ),
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontSize: 14,
@@ -312,26 +393,38 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 final room = roomsByCategory[selectedCategory]![index];
                 final timesForCat = selectedTimesByCat[selectedCategory]!;
                 final currentSlot = timesForCat[index]!;
-                final currentStatus = room['statuses'][currentSlot] ?? 'unknown';
+                final currentStatus =
+                    room['statuses'][currentSlot] ?? 'unknown';
 
                 return Container(
                   width: cardW,
                   height: cardH,
                   margin: EdgeInsets.only(
                     left: index == 0 ? 0 : 12,
-                    right: index == roomsByCategory[selectedCategory]!.length - 1 ? 0 : 12,
+                    right:
+                        index == roomsByCategory[selectedCategory]!.length - 1
+                        ? 0
+                        : 12,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Image
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
                         child: SizedBox(
                           height: imgH,
                           width: double.infinity,
@@ -347,14 +440,21 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                             children: [
                               Text(
                                 room['name'],
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 1),
                               Text(
                                 "${room['details']}  •  Max : ${room['max']} people",
-                                style: const TextStyle(color: Colors.black54, fontSize: 16, height: 1.25),
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                  height: 1.25,
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -362,32 +462,62 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                               Row(
                                 children: [
                                   Container(
-                                    width: 28, height: 28,
-                                    decoration: BoxDecoration(color: const Color(0xFFF2F2F2), borderRadius: BorderRadius.circular(14)),
-                                    child: const Icon(Icons.groups_outlined, size: 18, color: Colors.black87),
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF2F2F2),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Icon(
+                                      Icons.groups_outlined,
+                                      size: 18,
+                                      color: Colors.black87,
+                                    ),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Container(
                                       height: 36,
-                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: const Color(0xFFBDBDBD)),
+                                        border: Border.all(
+                                          color: const Color(0xFFBDBDBD),
+                                        ),
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
                                           isExpanded: true,
                                           value: currentSlot,
-                                          icon: const Icon(Icons.arrow_drop_down),
-                                          style: const TextStyle(fontSize: 13.5, color: Colors.black87),
+                                          icon: const Icon(
+                                            Icons.arrow_drop_down,
+                                          ),
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                            color: Colors.black87,
+                                          ),
                                           items: timeSlots
-                                              .map((slot) => DropdownMenuItem(value: slot, child: Text(slot, overflow: TextOverflow.ellipsis)))
+                                              .map(
+                                                (slot) => DropdownMenuItem(
+                                                  value: slot,
+                                                  child: Text(
+                                                    slot,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              )
                                               .toList(),
                                           onChanged: (v) {
                                             if (v != null) {
-                                              setState(() => selectedTimesByCat[selectedCategory]![index] = v);
+                                              setState(
+                                                () =>
+                                                    selectedTimesByCat[selectedCategory]![index] =
+                                                        v,
+                                              );
                                             }
                                           },
                                         ),
@@ -396,14 +526,21 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                                   ),
                                   const SizedBox(width: 10),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: getStatusColor(currentStatus),
                                       borderRadius: BorderRadius.circular(18),
                                     ),
                                     child: Text(
                                       currentStatus,
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12.5,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -434,8 +571,18 @@ class _HeaderText extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-        Text(subtitle, style: const TextStyle(color: Colors.white, fontSize: 22)),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          subtitle,
+          style: const TextStyle(color: Colors.white, fontSize: 22),
+        ),
       ],
     );
   }

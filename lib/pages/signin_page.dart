@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/lecturer_dashboard.dart';
 import 'package:flutter_application_1/staff_dashboard.dart';
-import 'package:flutter_application_1/student_browsing_multi.dart';
+import 'package:flutter_application_1/student_browsing.dart';
 import 'signup_page.dart';
 
 class SignInPage extends StatefulWidget {
@@ -28,7 +28,7 @@ class _SignInPageState extends State<SignInPage> {
     if (username == 'user' && password == '1234') {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const StudentBrowsingMulti()),
+        MaterialPageRoute(builder: (_) => const StudentBrowsing()),
       );
       return;
     }

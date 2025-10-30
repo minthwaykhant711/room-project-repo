@@ -16,7 +16,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   static const kNavy = Color(0xFF003366);
   static const kGreen = Color(0xFF1FA22A);
   static const kRed = Color(0xFFDA351C);
-  static const kGreyBg = Color(0xFFD9D9D9);
+
 
   String username = 'Ryan';
 
@@ -145,7 +145,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 50),
+                const SizedBox(height: 60),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Row(

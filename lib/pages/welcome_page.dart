@@ -59,7 +59,7 @@ class WelcomePage extends StatelessWidget {
               _buildButton(
                 text: 'SIGN IN',
                 onPressed: () {
-                  Navigator.push(
+                  Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => const SignInPage()),
                   );
@@ -69,7 +69,7 @@ class WelcomePage extends StatelessWidget {
               _buildButton(
                 text: 'SIGN UP',
                 onPressed: () {
-                  Navigator.push(
+                  Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => const SignUpPage()),
                   );

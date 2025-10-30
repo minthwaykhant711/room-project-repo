@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/logout_function.dart';
+import 'staff_dashboard.dart';
+import 'staff_history.dart'; 
 
 class StaffAddRoomPage extends StatelessWidget {
   const StaffAddRoomPage({super.key});
@@ -10,7 +13,7 @@ class StaffAddRoomPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final headerHeight = media.size.height * 0.23;
+    final headerHeight = media.size.height * 0.20;
 
     return Scaffold(
       // bottom nav (even spacing, home centered)
@@ -23,22 +26,14 @@ class StaffAddRoomPage extends StatelessWidget {
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
+              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
             ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                 onPressed: () => Navigator.maybePop(context),
               ),
               IconButton(
@@ -47,15 +42,23 @@ class StaffAddRoomPage extends StatelessWidget {
                   color: Colors.white,
                   size: 28,
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  // Go to StaffDashboard
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffDashboard()),
+                  );
+                },
               ),
               IconButton(
-                icon: const Icon(
-                  Icons.calendar_today,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                onPressed: () {},
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                onPressed: () {
+                  // Go to StaffHistory
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffHistory()),
+                  );
+                },
               ),
             ],
           ),
@@ -64,70 +67,78 @@ class StaffAddRoomPage extends StatelessWidget {
 
       body: Column(
         children: [
-          // Header (Hi, Staff / Add new room + logout)
-          SizedBox(
-            height: headerHeight,
+          // ===== HEADER (same style as LecturerHistory) =====
+          Container(
+            decoration: const BoxDecoration(
+              color: kNavy,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              border: Border(
+                bottom: BorderSide(color: Colors.black, width: 2),
+              ),
+            ),
             width: double.infinity,
-            child: Stack(
+            height: headerHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: kNavy,
-                    borderRadius: BorderRadius.vertical(
-                      bottom: Radius.circular(28),
-                    ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Column(
+                const SizedBox(height: 60),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // "Hi, Staff" + "Add new room"
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'Hi, Staff',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Hi',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ', Staff',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          SizedBox(height: 2),
                           Text(
                             'Add new room',
                             style: TextStyle(
+                              fontSize: 25,
                               color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.logout,
-                        color: Colors.white,
-                        size: 26,
+                      // Logout
+                      IconButton(
+                        onPressed: () => showLogoutDialog(context),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
                       ),
-                      onPressed: () {},
-                    ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
+
           const SizedBox(height: 16),
-          // White form card
+
+          // ===== White form card =====
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -136,11 +147,7 @@ class StaffAddRoomPage extends StatelessWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 8,
-                      offset: Offset(0, 3),
-                    ),
+                    BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
                   ],
                 ),
                 child: Padding(
@@ -155,27 +162,19 @@ class StaffAddRoomPage extends StatelessWidget {
                           color: const Color(0xFFD9D9D9),
                           borderRadius: BorderRadius.circular(18),
                           boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 6,
-                              offset: Offset(0, 2),
-                            ),
+                            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
                           ],
                         ),
                         child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: const [
-                              Icon(
-                                Icons.image_outlined,
-                                size: 40,
-                                color: Colors.black54,
-                              ),
+                              Icon(Icons.image_outlined, size: 40, color: Colors.black54),
                               SizedBox(height: 8),
                               Text(
                                 'Upload image',
                                 style: TextStyle(
-                                  color: Color(0xFF4A90E2), // your blue
+                                  color: Color(0xFF4A90E2),
                                   decoration: TextDecoration.underline,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -208,39 +207,24 @@ class StaffAddRoomPage extends StatelessWidget {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: kGreen,
                               shape: const StadiumBorder(),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 28,
-                                vertical: 12,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                             ),
-                            onPressed: () => _showSuccessThenBack(
-                              context,
-                            ), // 👈 show modal then navigate back
+                            onPressed: () => _showSuccessThenBack(context),
                             child: const Text(
                               'Save',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                             ),
                           ),
-
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: kRed,
                               shape: const StadiumBorder(),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 22,
-                                vertical: 12,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                             ),
                             onPressed: () => Navigator.pop(context),
                             child: const Text(
                               'Cancel',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                             ),
                           ),
                         ],
@@ -257,7 +241,6 @@ class StaffAddRoomPage extends StatelessWidget {
   }
 
   Future<void> _showSuccessThenBack(BuildContext context) async {
-    // 1) show the white rounded success dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -269,43 +252,34 @@ class StaffAddRoomPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: const [
-              Icon(
-                Icons.check_circle,
-                size: 120,
-                color: Color(0xFF1FA22A),
-              ), // big green check
+              Icon(Icons.check_circle, size: 120, color: Color(0xFF1FA22A)),
               SizedBox(height: 12),
-              Text(
-                'Room added successfully',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                textAlign: TextAlign.center,
-              ),
+              Text('Room added successfully', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
             ],
           ),
         ),
       ),
     );
 
-    // 2) keep it visible briefly, then close dialog and go back
     await Future.delayed(const Duration(milliseconds: 1200));
     Navigator.of(context, rootNavigator: true).pop(); // close dialog
-    Navigator.of(context).pop(); // go back to Room Management page
+    Navigator.of(context).pop(); // back to Room Management
   }
 
   // Helpers to keep the look identical to your mock
   static Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      );
 
   static Widget _greyField({double height = 44}) => Container(
-    height: height,
-    decoration: BoxDecoration(
-      color: const Color(0xFFD9D9D9),
-      borderRadius: BorderRadius.circular(12),
-    ),
-  );
+        height: height,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD9D9D9),
+          borderRadius: BorderRadius.circular(12),
+        ),
+      );
 }

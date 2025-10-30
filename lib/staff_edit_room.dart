@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/logout_function.dart';
+import 'staff_dashboard.dart';
+import 'staff_history.dart'; 
 
 class StaffEditRoomPage extends StatelessWidget {
   const StaffEditRoomPage({
@@ -20,9 +23,10 @@ class StaffEditRoomPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final headerHeight = MediaQuery.of(context).size.height * 0.23;
+    final headerHeight = MediaQuery.of(context).size.height * 0.20;
 
     return Scaffold(
+      // ===== Bottom nav (even spacing, Home centered) =====
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -36,9 +40,34 @@ class StaffEditRoomPage extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
-              const Icon(Icons.home_filled, color: Colors.white, size: 28),
-              const Icon(Icons.calendar_today, color: Colors.white),
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  // Go to StaffDashboard
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffDashboard()),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                onPressed: () {
+                  // Go to StaffHistory
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffHistory()),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -46,46 +75,79 @@ class StaffEditRoomPage extends StatelessWidget {
 
       body: Column(
         children: [
-          // Header
-          SizedBox(
-            height: headerHeight,
+          // ===== HEADER (same style as LecturerHistory) =====
+          Container(
+            decoration: const BoxDecoration(
+              color: kNavy,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              border: Border(
+                bottom: BorderSide(color: Colors.black, width: 2),
+              ),
+            ),
             width: double.infinity,
-            child: Stack(
+            height: headerHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: kNavy,
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-                  ),
-                ),
-                Positioned.fill(
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Column(
+                const SizedBox(height: 60),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // "Hi, Staff" + "Edit the Room"
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('Hi, Staff', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
-                          SizedBox(height: 2),
-                          Text('Edit the Room', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                        children:  [
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Hi',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ', Staff',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            'Edit the Room',
+                            style: TextStyle(
+                              fontSize: 25,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 8, top: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: IconButton(icon: const Icon(Icons.logout, color: Colors.white, size: 26), onPressed: () {}),
+
+                      // Logout button
+                      IconButton(
+                        onPressed: () => showLogoutDialog(context),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
+
           const SizedBox(height: 16),
-          // Form card
+
+          // ===== Form card =====
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -113,7 +175,7 @@ class StaffEditRoomPage extends StatelessWidget {
                           fit: StackFit.expand,
                           children: [
                             Image.asset(imagePath, fit: BoxFit.cover),
-                            // Change image link (purely visual)
+                            // "Change image" (visual only)
                             Align(
                               alignment: Alignment.bottomCenter,
                               child: Container(

@@ -229,6 +229,8 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
             ),
           ),
 
+          SizedBox(height: 35),
+
           // ===== SCROLLABLE BODY CONTENT =====
           Expanded(
             child: SingleChildScrollView(

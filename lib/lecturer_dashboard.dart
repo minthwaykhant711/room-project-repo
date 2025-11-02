@@ -82,7 +82,11 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
             ],
           ),
           child: Row(
@@ -95,7 +99,11 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
               ),
               // Home button
               IconButton(
-                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
                 onPressed: () {
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -103,15 +111,33 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                       content: const Text('You are already on the Home page'),
                       duration: const Duration(milliseconds: 1200),
                       behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white, size: 28),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LecturerBrowsing()),
                   );
                 },
               ),
               // Calendar (Booking History)
               IconButton(
-                icon: const Icon(Icons.calendar_today, color: Colors.white, size: 28),
+                icon: const Icon(
+                  Icons.calendar_today,
+                  color: Colors.white,
+                  size: 28,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -182,7 +208,11 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                       // Logout button
                       IconButton(
                         onPressed: () => showLogoutDialog(context),
-                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                          size: 40,
+                        ),
                       ),
                     ],
                   ),
@@ -222,30 +252,38 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                   const SizedBox(height: 28),
 
                   // ===== SINGLE ACTION BUTTON =====
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LecturerBrowsing()),
-                      );
-                    },
-                    icon: const Icon(Icons.exit_to_app_rounded, color: Colors.black87, size: 26),
-                    label: const Text(
-                      'Browse Room',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      elevation: 2,
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    ),
-                  ),
-
+                  // ElevatedButton.icon(
+                  //   onPressed: () {
+                  //     Navigator.push(
+                  //       context,
+                  //       MaterialPageRoute(
+                  //         builder: (_) => const LecturerBrowsing(),
+                  //       ),
+                  //     );
+                  //   },
+                  //   icon: const Icon(
+                  //     Icons.exit_to_app_rounded,
+                  //     color: Colors.black87,
+                  //     size: 26,
+                  //   ),
+                  //   label: const Text(
+                  //     'Browse Room',
+                  //     style: TextStyle(
+                  //       color: Colors.black87,
+                  //       fontWeight: FontWeight.bold,
+                  //       fontSize: 16,
+                  //     ),
+                  //   ),
+                  //   style: ElevatedButton.styleFrom(
+                  //     backgroundColor: Colors.white,
+                  //     elevation: 2,
+                  //     shape: const StadiumBorder(),
+                  //     padding: const EdgeInsets.symmetric(
+                  //       horizontal: 20,
+                  //       vertical: 15,
+                  //     ),
+                  //   ),
+                  // ),
                   const SizedBox(height: 25),
                 ],
               ),

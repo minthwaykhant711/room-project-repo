@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/lecturer_dashboard.dart';
 import 'package:flutter_application_1/lecturer_history.dart';
+import 'package:flutter_application_1/staff_room_management.dart';
 
 class LecturerBrowsing extends StatefulWidget {
   const LecturerBrowsing({super.key});
@@ -238,6 +239,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                   );
                 },
               ),
+
               IconButton(
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
                 onPressed: () {
@@ -420,7 +422,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Image
+                      // Image (70%)
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(16),
@@ -431,21 +433,64 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                           child: Image.asset(room['image'], fit: BoxFit.cover),
                         ),
                       ),
-                      // Info
+                      SizedBox(height: 18),
+                      // Info (30%)
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(7, 4, 5, 1),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                room['name'],
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      room['name'],
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const StaffRoomManagementPage(),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.settings,
+                                      size: 20,
+                                      color: Color(0xFF003366),
+                                    ),
+                                    label: const Text(
+                                      'Manage',
+                                      style: TextStyle(
+                                        color: Color(0xFF003366),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      backgroundColor: Colors.grey[100],
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 1),
                               Text(

@@ -14,6 +14,7 @@ class SignInPage extends StatefulWidget {
 class _SignInPageState extends State<SignInPage> {
   final TextEditingController _user = TextEditingController();
   final TextEditingController _pass = TextEditingController();
+  bool _rememberMe = false;
 
   @override
   void dispose() {
@@ -174,12 +175,26 @@ class _SignInPageState extends State<SignInPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        const Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            'Forgot your password?',
-                            style: TextStyle(color: Colors.white, fontSize: 14),
-                          ),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberMe = value ?? false;
+                                });
+                              },
+                              activeColor: Colors.white,
+                              checkColor: Color(0xFF0E2A5D),
+                            ),
+                            const Text(
+                              'Remember me',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 40),
                         ElevatedButton(

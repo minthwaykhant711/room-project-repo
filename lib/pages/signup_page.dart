@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'signin_page.dart';
 
@@ -10,28 +9,36 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final TextEditingController _userController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
   @override
   void dispose() {
-    _userController.dispose();
+    _emailController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _passController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
   void _attemptSignUp() {
-    final username = _userController.text.trim();
+    final email = _emailController.text.trim();
+    final first = _firstNameController.text.trim();
+    final last = _lastNameController.text.trim();
     final pass = _passController.text;
     final confirm = _confirmController.text;
 
-    if (pass.isEmpty || confirm.isEmpty) {
+    if (email.isEmpty ||
+        first.isEmpty ||
+        last.isEmpty ||
+        pass.isEmpty ||
+        confirm.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter password and confirm password'),
-        ),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
@@ -65,89 +72,91 @@ class _SignUpPageState extends State<SignUpPage> {
         width: size.width,
         height: size.height,
         color: Colors.white,
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 100, left: 30, bottom: 80),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RichText(
-                      text: const TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Sign ',
-                            style: TextStyle(
-                              color: Color(0xFF0E2A5D),
-                              fontSize: 49,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'Up',
-                            style: TextStyle(
-                              color: Color(0xFF0E2A5D),
-                              fontSize: 49,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
-                              decorationThickness: 1,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ',',
-                            style: TextStyle(
-                              color: Color(0xFF0E2A5D),
-                              fontSize: 49,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Keep pushing forward',
-                      style: TextStyle(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ─── Header Text ───────────────────────────────
+            Padding(
+              padding: const EdgeInsets.only(top: 100, left: 30, bottom: 80),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
                         color: Color(0xFF0E2A5D),
-                        fontSize: 16,
+                        fontSize: 49,
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0E2A5D), Color(0xFF1A4FA8)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(50),
-                      topRight: Radius.circular(50),
+                      children: [
+                        const TextSpan(text: 'Sign '),
+                        const TextSpan(
+                          text: 'Up',
+                          style: TextStyle(
+                            decoration: TextDecoration.underline,
+                            decorationThickness: 1,
+                          ),
+                        ),
+                        const TextSpan(text: ','),
+                      ],
                     ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 40,
+                  const SizedBox(height: 15),
+                  Text(
+                    'Keep pushing forward',
+                    style: TextStyle(
+                      color: Color(0xFF0E2A5D),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
+
+                  SizedBox(height: 8),
+                  Text(
+                    'Create your student account',
+                    style: TextStyle(
+                      color: Color(0xFF0E2A5D),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ─── Form Section ──────────────────────────────
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0E2A5D), Color(0xFF1A4FA8)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(50),
+                    topRight: Radius.circular(50),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 40,
+                  ),
+                  child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 20),
+
+                        // Email
                         TextField(
-                          controller: _userController,
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.person_outline),
-                            hintText: 'Username',
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            hintText: 'Email',
                             filled: true,
                             fillColor: Colors.grey.shade300,
                             contentPadding: const EdgeInsets.symmetric(
@@ -160,6 +169,52 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
+
+                        // First + Last Name (side by side)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _firstNameController,
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.person_outline),
+                                  hintText: 'First Name',
+                                  filled: true,
+                                  fillColor: Colors.grey.shade300,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _lastNameController,
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.person_outline),
+                                  hintText: 'Last Name',
+                                  filled: true,
+                                  fillColor: Colors.grey.shade300,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Password
                         TextField(
                           controller: _passController,
                           obscureText: true,
@@ -178,6 +233,8 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
+
+                        // Confirm Password
                         TextField(
                           controller: _confirmController,
                           obscureText: true,
@@ -196,10 +253,12 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 40),
+
+                        // Sign Up Button
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: Color(0xFF0E2A5D),
+                            foregroundColor: const Color(0xFF0E2A5D),
                             shadowColor: Colors.black,
                             elevation: 10,
                             shape: RoundedRectangleBorder(
@@ -220,6 +279,8 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 40),
+
+                        // Already have account?
                         GestureDetector(
                           onTap: () {
                             Navigator.pushReplacement(
@@ -256,8 +317,8 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
+import 'package:flutter_application_1/staff_browsing.dart';
 import 'staff_dashboard.dart'; // class: StaffDashboard
 
 class StaffHistory extends StatefulWidget {
@@ -205,12 +206,18 @@ class _StaffHistoryState extends State<StaffHistory>
             ),
 
             // ─── REJECTION REASON (only for rejected bookings) ───────────────
-            if (status == 0 && b['approver'].isNotEmpty && b.containsKey('reason')) ...[
+            if (status == 0 &&
+                b['approver'].isNotEmpty &&
+                b.containsKey('reason')) ...[
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, size: 20, color: Colors.redAccent),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Colors.redAccent,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -218,7 +225,6 @@ class _StaffHistoryState extends State<StaffHistory>
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.black87,
-                        
                       ),
                     ),
                   ),
@@ -232,17 +238,23 @@ class _StaffHistoryState extends State<StaffHistory>
   }
 
   Widget _buildEmptyState(String title) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text('$title is empty', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
-            const SizedBox(height: 8),
-            Text('No ${title.toLowerCase()} bookings found', style: TextStyle(color: Colors.grey[500])),
-          ],
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+        const SizedBox(height: 16),
+        Text(
+          '$title is empty',
+          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
         ),
-      );
+        const SizedBox(height: 8),
+        Text(
+          'No ${title.toLowerCase()} bookings found',
+          style: TextStyle(color: Colors.grey[500]),
+        ),
+      ],
+    ),
+  );
 
   // -------------------------------------------------------------------------
   // MAIN BUILD
@@ -250,7 +262,9 @@ class _StaffHistoryState extends State<StaffHistory>
   @override
   Widget build(BuildContext context) {
     final pending = _allBookings.where((b) => b['approver'].isEmpty).toList();
-    final history = _allBookings.where((b) => b['approver'].isNotEmpty).toList();
+    final history = _allBookings
+        .where((b) => b['approver'].isNotEmpty)
+        .toList();
     final headerHeight = MediaQuery.of(context).size.height * 0.24;
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
@@ -265,15 +279,41 @@ class _StaffHistoryState extends State<StaffHistory>
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
               IconButton(
-                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffDashboard())),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const StaffDashboard()),
+                ),
+              ),
+
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white, size: 28),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffBrowsing()),
+                  );
+                },
               ),
               IconButton(
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
@@ -281,11 +321,18 @@ class _StaffHistoryState extends State<StaffHistory>
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('You are already on the Booking page'),
+                      content: const Text(
+                        'You are already on the Booking page',
+                      ),
                       duration: const Duration(milliseconds: 1200),
                       behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   );
                 },
@@ -302,7 +349,10 @@ class _StaffHistoryState extends State<StaffHistory>
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFF003366),
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             width: double.infinity,
@@ -325,18 +375,35 @@ class _StaffHistoryState extends State<StaffHistory>
                               children: [
                                 const TextSpan(
                                   text: 'Hi',
-                                  style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                TextSpan(text: ', $username', style: const TextStyle(fontSize: 28, color: Colors.white)),
+                                TextSpan(
+                                  text: ', $username',
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          const Text('Bookings', style: TextStyle(fontSize: 25, color: Colors.white)),
+                          const Text(
+                            'Bookings',
+                            style: TextStyle(fontSize: 25, color: Colors.white),
+                          ),
                         ],
                       ),
                       IconButton(
                         onPressed: () => showLogoutDialog(context),
-                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                          size: 40,
+                        ),
                       ),
                     ],
                   ),
@@ -355,7 +422,10 @@ class _StaffHistoryState extends State<StaffHistory>
                       dividerColor: Colors.transparent,
                       labelStyle: const TextStyle(fontSize: 20),
                       labelPadding: const EdgeInsets.symmetric(horizontal: 0),
-                      tabs: const [Tab(text: 'Pending'), Tab(text: 'History')],
+                      tabs: const [
+                        Tab(text: 'Pending'),
+                        Tab(text: 'History'),
+                      ],
                     ),
                   ),
                 ),

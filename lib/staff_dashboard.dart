@@ -112,11 +112,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 },
               ),
               IconButton(
-                icon: const Icon(
-                  Icons.settings_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
+                icon: const Icon(Icons.search, color: Colors.white, size: 28),
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
@@ -241,78 +237,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
                   const SizedBox(height: 28),
 
-                  // ===== ACTION BUTTONS =====
-                  // Row(
-                  //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  //   children: [
-                  //     // MANAGE ROOM
-                  //     ElevatedButton.icon(
-                  //       onPressed: () {
-                  //         Navigator.push(
-                  //           context,
-                  //           MaterialPageRoute(
-                  //             builder: (_) => const StaffRoomManagementPage(),
-                  //           ),
-                  //         );
-                  //       },
-                  //       icon: const Icon(
-                  //         Icons.settings_outlined,
-                  //         color: Colors.black87,
-                  //         size: 24,
-                  //       ),
-                  //       label: const Text(
-                  //         'Manage Room',
-                  //         style: TextStyle(
-                  //           color: Colors.black87,
-                  //           fontWeight: FontWeight.bold,
-                  //           fontSize: 15.5,
-                  //         ),
-                  //       ),
-                  //       style: ElevatedButton.styleFrom(
-                  //         backgroundColor: Colors.white,
-                  //         elevation: 2,
-                  //         shape: const StadiumBorder(),
-                  //         padding: const EdgeInsets.symmetric(
-                  //           horizontal: 10,
-                  //           vertical: 15,
-                  //         ),
-                  //       ),
-                  //     ),
-
-                  //     ElevatedButton.icon(
-                  //       onPressed: () {
-                  //         Navigator.push(
-                  //           context,
-                  //           MaterialPageRoute(
-                  //             builder: (_) => const StaffBrowsing(),
-                  //           ),
-                  //         );
-                  //       },
-                  //       icon: const Icon(
-                  //         Icons.exit_to_app_rounded,
-                  //         color: Colors.black87,
-                  //         size: 24,
-                  //       ),
-                  //       label: const Text(
-                  //         'Browse Room',
-                  //         style: TextStyle(
-                  //           color: Colors.black87,
-                  //           fontWeight: FontWeight.bold,
-                  //           fontSize: 15.5,
-                  //         ),
-                  //       ),
-                  //       style: ElevatedButton.styleFrom(
-                  //         backgroundColor: Colors.white,
-                  //         elevation: 2,
-                  //         shape: const StadiumBorder(),
-                  //         padding: const EdgeInsets.symmetric(
-                  //           horizontal: 10,
-                  //           vertical: 15,
-                  //         ),
-                  //       ),
-                  //     ),
-                  //   ],
-                  // ),
                   const SizedBox(height: 20),
                 ],
               ),

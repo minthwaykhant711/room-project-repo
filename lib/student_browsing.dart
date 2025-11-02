@@ -195,6 +195,132 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     };
   }
 
+  void _showRoomDetailDialog(Map<String, dynamic> room) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+          ), // Adjusts dialog position
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth:
+                  420, // wider dialog — adjust this value (e.g., 450–500 if you want)
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    room['name'],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF003366),
+                    ),
+                  ),
+                  const Divider(thickness: 1),
+                  const SizedBox(height: 8),
+
+                  // Time slot list
+                  Column(
+                    children: room['statuses'].entries.map<Widget>((entry) {
+                      final time = entry.key;
+                      final status = entry.value;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Time slot text
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                time,
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ),
+
+                            // Status badge
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: getStatusColor(status),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Book button
+                            Expanded(
+                              flex: 2,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: ElevatedButton(
+                                  onPressed: status == 'available'
+                                      ? () async {
+                                          Navigator.pop(context);
+                                          await _showConfirmDialog(
+                                            room: room,
+                                            slot: time,
+                                          );
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: status == 'available'
+                                        ? const Color(0xFF003366)
+                                        : Colors.grey,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "Book",
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
   // Booking UI
   Future<void> _showConfirmDialog({
@@ -546,18 +672,17 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                 const double cardW = 320;
                 final double imgH = cardH * 0.70;
 
-                final room = rooms[index];
-                final currentSlot = timesForCat[index]!;
-                final currentStatus =
-                    room['statuses'][currentSlot] ?? 'unknown';
-                final isAvailable = currentStatus == 'available';
+                final room = roomsByCategory[selectedCategory]![index];
 
                 return Container(
                   width: cardW,
                   height: cardH,
                   margin: EdgeInsets.only(
                     left: index == 0 ? 0 : 12,
-                    right: index == rooms.length - 1 ? 0 : 12,
+                    right:
+                        index == roomsByCategory[selectedCategory]!.length - 1
+                        ? 0
+                        : 12,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -573,7 +698,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Image 70%
+                      // ─── Image (Top) ─────────────────────────────
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(16),
@@ -584,160 +709,53 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                           child: Image.asset(room['image'], fit: BoxFit.cover),
                         ),
                       ),
-                      // Info 30%
+                      const SizedBox(height: 18),
+
+                      // ─── Info (Bottom) ──────────────────────────
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                          padding: const EdgeInsets.fromLTRB(7, 4, 5, 1),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // title + details
                               Text(
                                 room['name'],
                                 style: const TextStyle(
-                                  fontSize: 16.5,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 2),
                               Text(
                                 "${room['details']}  •  Max : ${room['max']} people",
                                 style: const TextStyle(
                                   color: Colors.black54,
-                                  fontSize: 12.5,
+                                  fontSize: 16,
                                   height: 1.25,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              const SizedBox(height: 25),
 
-                              const Spacer(),
-
-                              // controls row: people icon + dropdown + status + booking icon
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF2F2F2),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: const Icon(
-                                      Icons.groups_outlined,
-                                      size: 18,
-                                      color: Colors.black87,
+                              // ─── Detail Button ──────────────────────
+                              Center(
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _showRoomDetailDialog(room),
+                                  icon: const Icon(
+                                    Icons.info_outline,
+                                    size: 18,
+                                  ),
+                                  label: const Text("Detail"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF003366),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-
-                                  // time dropdown
-                                  Expanded(
-                                    child: Container(
-                                      height: 36,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: const Color(0xFFBDBDBD),
-                                        ),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          isExpanded: true,
-                                          value: currentSlot,
-                                          icon: const Icon(
-                                            Icons.arrow_drop_down,
-                                          ),
-                                          style: const TextStyle(
-                                            fontSize: 13.5,
-                                            color: Colors.black87,
-                                          ),
-                                          items: timeSlots
-                                              .map(
-                                                (slot) => DropdownMenuItem(
-                                                  value: slot,
-                                                  child: Text(
-                                                    slot,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              )
-                                              .toList(),
-                                          onChanged: (v) {
-                                            if (v != null) {
-                                              setState(
-                                                () =>
-                                                    selectedTimesByCat[selectedCategory]![index] =
-                                                        v,
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(width: 8),
-
-                                  // status pill
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: getStatusColor(currentStatus),
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    child: Text(
-                                      currentStatus,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12.5,
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(width: 8),
-
-                                  // booking icon (student extra)
-                                  InkWell(
-                                    borderRadius: BorderRadius.circular(10),
-                                    onTap: isAvailable
-                                        ? () => _showConfirmDialog(
-                                            room: room,
-                                            slot:
-                                                selectedTimesByCat[selectedCategory]![index]!,
-                                          )
-                                        : null,
-                                    child: Container(
-                                      width: 34,
-                                      height: 34,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(0xFFBDBDBD),
-                                        ),
-                                        color: Colors.white,
-                                      ),
-                                      child: Icon(
-                                        Icons.note_alt_outlined,
-                                        size: 20,
-                                        color: isAvailable
-                                            ? const Color(0xFF003366)
-                                            : Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
                           ),

@@ -192,6 +192,105 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
     };
   }
 
+  void _showRoomDetailDialog(Map<String, dynamic> room) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+          ), // more width
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.9, // wider layout
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ─── Title ────────────────────────────────
+                  Text(
+                    room['name'],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF003366),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(thickness: 1),
+                  const SizedBox(height: 8),
+
+                  // ─── Time slots and status ────────────────
+                  Column(
+                    children: room['statuses'].entries.map<Widget>((entry) {
+                      final time = entry.key;
+                      final status = entry.value;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Time slot text
+                            Text(time, style: const TextStyle(fontSize: 15)),
+
+                            // Status color badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: getStatusColor(status),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                status,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ─── Close button ─────────────────────────
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF003366),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -236,6 +335,16 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                     MaterialPageRoute(
                       builder: (_) => const LecturerDashboard(),
                     ),
+                  );
+                },
+              ),
+
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white, size: 28),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LecturerBrowsing()),
                   );
                 },
               ),
@@ -393,10 +502,6 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 final double imgH = cardH * 0.70;
 
                 final room = roomsByCategory[selectedCategory]![index];
-                final timesForCat = selectedTimesByCat[selectedCategory]!;
-                final currentSlot = timesForCat[index]!;
-                final currentStatus =
-                    room['statuses'][currentSlot] ?? 'unknown';
 
                 return Container(
                   width: cardW,
@@ -422,7 +527,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Image (70%)
+                      // ─── Image (Top) ─────────────────────────────
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(16),
@@ -433,8 +538,9 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                           child: Image.asset(room['image'], fit: BoxFit.cover),
                         ),
                       ),
-                      SizedBox(height: 15),
-                      // Info (30%)
+                      const SizedBox(height: 18),
+
+                      // ─── Info (Bottom) ──────────────────────────
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(7, 4, 5, 1),
@@ -450,7 +556,6 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-
                               Text(
                                 "${room['details']}  •  Max : ${room['max']} people",
                                 style: const TextStyle(
@@ -462,91 +567,24 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 25),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF2F2F2),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: const Icon(
-                                      Icons.groups_outlined,
-                                      size: 18,
-                                      color: Colors.black87,
+
+                              // ─── Detail Button ──────────────────────
+                              Center(
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _showRoomDetailDialog(room),
+                                  icon: const Icon(
+                                    Icons.info_outline,
+                                    size: 18,
+                                  ),
+                                  label: const Text("Detail"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF003366),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Container(
-                                      height: 36,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: const Color(0xFFBDBDBD),
-                                        ),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          isExpanded: true,
-                                          value: currentSlot,
-                                          icon: const Icon(
-                                            Icons.arrow_drop_down,
-                                          ),
-                                          style: const TextStyle(
-                                            fontSize: 13.5,
-                                            color: Colors.black87,
-                                          ),
-                                          items: timeSlots
-                                              .map(
-                                                (slot) => DropdownMenuItem(
-                                                  value: slot,
-                                                  child: Text(
-                                                    slot,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              )
-                                              .toList(),
-                                          onChanged: (v) {
-                                            if (v != null) {
-                                              setState(
-                                                () =>
-                                                    selectedTimesByCat[selectedCategory]![index] =
-                                                        v,
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: getStatusColor(currentStatus),
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    child: Text(
-                                      currentStatus,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12.5,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
                           ),

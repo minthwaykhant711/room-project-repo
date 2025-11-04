@@ -24,16 +24,16 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   void _attemptSignIn() {
-    final username = _user.text.trim();
+    final email = _user.text.trim();
     final password = _pass.text;
-    if (username == 'user' && password == '1234') {
+    if (email == 'user' && password == '1234') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const StudentBrowsing()),
       );
       return;
     }
-    if (username == 'staff' && password == '1234') {
+    if (email == 'staff' && password == '1234') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => StaffDashboard()),
@@ -41,7 +41,7 @@ class _SignInPageState extends State<SignInPage> {
       return;
     }
 
-    if (username == 'lecturer' && password == '1234') {
+    if (email == 'lecturer' && password == '1234') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LecturerDashboard()),
@@ -144,7 +144,7 @@ class _SignInPageState extends State<SignInPage> {
                           controller: _user,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.person_outline),
-                            hintText: 'Username',
+                            hintText: 'Email',
                             filled: true,
                             fillColor: Colors.grey.shade300,
                             contentPadding: const EdgeInsets.symmetric(

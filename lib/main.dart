@@ -7,5 +7,5 @@ import 'package:flutter_application_1/student_browsing.dart';
 
 
 void main() {
-  runApp(const MaterialApp(home: StudentBrowsing()));
+  runApp(const MaterialApp(home: WelcomePage()));
 }

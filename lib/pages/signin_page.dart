@@ -1,14 +1,8 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/lecturer_dashboard.dart';
 import 'package:flutter_application_1/staff_dashboard.dart';
 import 'package:flutter_application_1/student_browsing.dart';
 import 'signup_page.dart';
-import 'dart:async';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -18,103 +12,45 @@ class SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<SignInPage> {
-  final TextEditingController _email = TextEditingController();
+  final TextEditingController _user = TextEditingController();
   final TextEditingController _pass = TextEditingController();
   bool _rememberMe = false;
-  bool isLoading = false;
-  bool isWaiting = false;
-
-  Uri uri = Uri(
-    scheme: 'http',
-    host: '127.0.0.1', // just the IP
-    port: 3000, // separate port
-    path: '/api/login',
-  );
-
-  void popDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(title: const Text('Error'), content: Text(message));
-      },
-    );
-  }
 
   @override
   void dispose() {
-    _email.dispose();
+    _user.dispose();
     _pass.dispose();
     super.dispose();
   }
 
-  void login() async {
-    setState(() {
-      isWaiting = true;
-    });
-    try {
-      Map account = {
-        'email': _email.text.trim(),
-        'password': _pass.text.trim(),
-      };
-      http.Response response = await http
-          .post(
-            uri,
-            body: jsonEncode(account),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(const Duration(seconds: 10));
-      // check server's response
-      if (response.statusCode == 200) {
-        // get token and save to local storage
-        String token = response.body;
-        // debugPrint(token);
-
-        final storage = await SharedPreferences.getInstance();
-        await storage.setString('token', token);
-        // decode token to get user role
-        final user = jsonDecode(token);
-        // debugPrint(user['role']);
-
-        // to prevent warning of using 'context' in navigation
-        if (!mounted) return;
-        // navigate to admin page or user page
-        if (user['role'] == 'student') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (BuildContext context) => const StudentBrowsing(),
-            ),
-          );
-        } else if (user['role'] == 'staff') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (BuildContext context) => const StaffDashboard(),
-            ),
-          );
-        } else if (user['role'] == 'lecturer') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (BuildContext context) => const LecturerDashboard(),
-            ),
-          );
-        }
-      } else {
-        // wrong username or password
-        popDialog(response.body);
-      }
-    } on TimeoutException catch (e) {
-      debugPrint(e.message);
-      popDialog('Timeout error, try again!');
-    } catch (e) {
-      debugPrint(e.toString());
-      popDialog('Unknown error, try again!');
-    } finally {
-      setState(() {
-        isWaiting = false;
-      });
+  void _attemptSignIn() {
+    final username = _user.text.trim();
+    final password = _pass.text;
+    if (username == 'user' && password == '1234') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const StudentBrowsing()),
+      );
+      return;
     }
+    if (username == 'staff' && password == '1234') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => StaffDashboard()),
+      );
+      return;
+    }
+
+    if (username == 'lecturer' && password == '1234') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => LecturerDashboard()),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Invalid credentials')));
   }
 
   @override
@@ -205,10 +141,10 @@ class _SignInPageState extends State<SignInPage> {
                       children: [
                         const SizedBox(height: 40),
                         TextField(
-                          controller: _email,
+                          controller: _user,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.person_outline),
-                            hintText: 'Email',
+                            hintText: 'Username',
                             filled: true,
                             fillColor: Colors.grey.shade300,
                             contentPadding: const EdgeInsets.symmetric(
@@ -261,33 +197,29 @@ class _SignInPageState extends State<SignInPage> {
                           ],
                         ),
                         const SizedBox(height: 40),
-                        isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFF0E2A5D),
-                                  elevation: 10,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 80,
-                                    vertical: 16,
-                                  ),
-                                ),
-                                onPressed: login,
-                                child: const Text(
-                                  'SIGN IN',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ),
-
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Color(0xFF0E2A5D),
+                            shadowColor: Colors.black,
+                            elevation: 10,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 80,
+                              vertical: 16,
+                            ),
+                          ),
+                          onPressed: _attemptSignIn,
+                          child: const Text(
+                            'SIGN IN',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 40),
                         GestureDetector(
                           onTap: () {

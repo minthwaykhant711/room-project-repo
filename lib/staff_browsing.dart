@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/staff_dashboard.dart';
@@ -12,47 +13,26 @@ class StaffBrowsing extends StatefulWidget {
 }
 
 class _StaffBrowsingState extends State<StaffBrowsing> {
-  // ────────────────────────────────────────────────────────────────────────────
-  // Date formatter for the header (e.g., FRI, OCT 24, 2025)
+  // ───────────────────────────────────────────────────────────────
   String _formatHeaderDate(DateTime d) {
-    const w = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    const m = [
-      'JAN',
-      'FEB',
-      'MAR',
-      'APR',
-      'MAY',
-      'JUN',
-      'JUL',
-      'AUG',
-      'SEP',
-      'OCT',
-      'NOV',
-      'DEC',
-    ];
+    const w = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+    const m = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     final weekday = w[(d.weekday + 6) % 7];
     final month = m[d.month - 1];
     return '$weekday, $month ${d.day}, ${d.year}';
   }
 
-  // Room status colors
   Color getStatusColor(String status) {
     switch (status) {
-      case 'available':
-        return Colors.teal;
-      case 'pending':
-        return Colors.orange;
-      case 'reserved':
-        return const Color.fromARGB(255, 12, 143, 209);
-      case 'disabled':
-        return Colors.red;
-      default:
-        return Colors.grey;
+      case 'available': return Colors.teal;
+      case 'pending':   return Colors.orange;
+      case 'reserved':  return const Color.fromARGB(255, 12, 143, 209);
+      case 'disabled':  return Colors.red;
+      default:          return Colors.grey;
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Config
+  // ───────────────────────────────────────────────────────────────
   final List<String> categories = ['Study', 'Multimedia', 'Meeting'];
   String selectedCategory = 'Meeting';
 
@@ -63,7 +43,6 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
     '14:00 - 16:00',
   ];
 
-  // Hard-coded rooms per category (uses your asset images)
   late final Map<String, List<Map<String, dynamic>>> roomsByCategory = {
     'Study': [
       {
@@ -80,18 +59,6 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
       },
       {
         'name': 'Study Room B',
-        'details': 'Quiet, Whiteboard',
-        'max': 6,
-        'statuses': {
-          '8:00 - 10:00': 'pending',
-          '10:00 - 12:00': 'available',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room B.jpg',
-      },
-      {
-        'name': 'Study Room C',
         'details': 'Quiet, Whiteboard',
         'max': 6,
         'statuses': {
@@ -120,8 +87,9 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
         'name': 'Multimedia Room B',
         'details': 'TV, Aircon, Netflix, Prime',
         'max': 4,
+        // FULLY BOOKED TODAY (no 'available' slots)
         'statuses': {
-          '8:00 - 10:00': 'available',
+          '8:00 - 10:00': 'reserved',
           '10:00 - 12:00': 'pending',
           '13:00 - 14:00': 'reserved',
           '14:00 - 16:00': 'disabled',
@@ -181,129 +149,97 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
     ],
   };
 
-  // Each category keeps its own selected time per card
-  late Map<String, Map<int, String>> selectedTimesByCat;
-
-  @override
-  void initState() {
-    super.initState();
-    selectedTimesByCat = {
-      for (final cat in categories)
-        cat: {
-          for (int i = 0; i < roomsByCategory[cat]!.length; i++)
-            i: timeSlots.first,
-        },
-    };
-  }
-
-  void _showRoomDetailDialog(Map<String, dynamic> room) {
-    showDialog(
+  // ───────────────────────────────────────────────────────────────
+  Future<void> _showSlotsDialog(Map<String, dynamic> room) async {
+    await showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-          ), // more width
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.9, // wider layout
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ─── Title ────────────────────────────────
-                  Text(
-                    room['name'],
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF003366),
-                    ),
+      builder: (ctx) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+            contentPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  room['name'],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: Color(0xFF003366),
                   ),
-                  const SizedBox(height: 8),
-                  const Divider(thickness: 1),
-                  const SizedBox(height: 8),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "${room['details']}  •  Max: ${room['max']} people",
+                  style: const TextStyle(color: Colors.black54, fontSize: 13.5, height: 1.2),
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1),
+              ],
+            ),
+            content: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: timeSlots.map((slot) {
+                final status = (room['statuses'][slot] as String?) ?? 'unknown';
+                final color = getStatusColor(status);
 
-                  // ─── Time slots and status ────────────────
-                  Column(
-                    children: room['statuses'].entries.map<Widget>((entry) {
-                      final time = entry.key;
-                      final status = entry.value;
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Time slot text
-                            Text(time, style: const TextStyle(fontSize: 15)),
-
-                            // Status color badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: getStatusColor(status),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Text(
-                                status,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+                return IgnorePointer(
+                  ignoring: true,
+                  child: RawChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.access_time, size: 16),
+                        const SizedBox(width: 6),
+                        Text(slot),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+                          child: Text(
+                            status,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                          ),
                         ),
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ─── Close button ─────────────────────────
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF003366),
-                      ),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      ],
                     ),
+                    backgroundColor: Colors.white,
+                    shape: const StadiumBorder(side: BorderSide(color: Color(0xFFBDBDBD))),
+                    onPressed: () {},
+                    pressElevation: 0,
+                    elevation: 0,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                ],
-              ),
+                );
+              }).toList(),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF003366))),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final headerHeight = MediaQuery.of(context).size.height * 0.28;
+    final rooms = roomsByCategory[selectedCategory]!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
 
-      // Bottom Nav (standard)
+      // Bottom navigation (push so back arrow works)
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -312,13 +248,7 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -328,34 +258,30 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
                 onPressed: () => Navigator.maybePop(context),
               ),
               IconButton(
-                icon: const Icon(
-                  Icons.home_filled,
-                  color: Colors.white,
-                  size: 28,
-                ),
+                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const StaffDashboard()),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffDashboard()));
                 },
               ),
               IconButton(
                 icon: const Icon(Icons.search, color: Colors.white, size: 28),
                 onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const StaffBrowsing()),
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('You are already on the Browse Room page'),
+                      duration: const Duration(milliseconds: 1200),
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   );
                 },
               ),
               IconButton(
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const StaffHistory()),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffHistory()));
                 },
               ),
             ],
@@ -366,16 +292,13 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
       // Body
       body: Column(
         children: [
-          // Header
+          // Header (same as LecturerBrowsing but "Hi, Staff" + Manage button)
           Container(
             width: double.infinity,
             height: headerHeight,
             decoration: const BoxDecoration(
               color: Color(0xFF003366),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             child: Column(
@@ -386,134 +309,55 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Hi, Staff / Room Management
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          RichText(
-                            text: const TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'Hi',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: ', Staff',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Text(
-                            'Browse Rooms',
-                            style: TextStyle(fontSize: 25, color: Colors.white),
-                          ),
-                        ],
-                      ),
-
-                      // Logout button
-                      IconButton(
-                        onPressed: () => showLogoutDialog(context),
-                        icon: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
+                    children: const [
+                      _HeaderText(title: 'Hi, Staff', subtitle: 'Browse Rooms'),
+                      _LogoutBtn(),
                     ],
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Date pill
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Date pill
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 18,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(28),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              width: 30,
-                              height: 30,
-                              decoration: const BoxDecoration(
-                                color: Colors.black87,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.calendar_month,
-                                color: Colors.white,
-                                size: 25,
-                              ),
+                              width: 30, height: 30,
+                              decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                              child: const Icon(Icons.calendar_month, color: Colors.white, size: 24),
                             ),
                             const SizedBox(width: 12),
                             Text(
                               _formatHeaderDate(DateTime.now()),
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
+                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black87),
                             ),
                           ],
                         ),
                       ),
 
+                      // Keep Manage button
                       TextButton.icon(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const StaffRoomManagementPage(),
-                            ),
-                          );
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffRoomManagementPage()));
                         },
-                        icon: const Icon(
-                          Icons.settings,
-                          size: 20,
-                          color: Color(0xFF003366),
-                        ),
-                        label: const Text(
-                          'Manage',
-                          style: TextStyle(
-                            color: Color(0xFF003366),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
+                        icon: const Icon(Icons.settings, size: 20, color: Color(0xFF003366)),
+                        label: const Text('Manage',
+                            style: TextStyle(color: Color(0xFF003366), fontWeight: FontWeight.w600, fontSize: 14)),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           backgroundColor: Colors.grey[100],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ],
@@ -525,35 +369,28 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
 
           const SizedBox(height: 10),
 
-          // ROOM TYPE SELECT (3 across, no checkmark)
+          // Category chips
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(
               children: List.generate(categories.length, (i) {
                 final cat = categories[i];
                 final isSelected = cat == selectedCategory;
                 return Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(
-                      left: i == 0 ? 0 : 8,
-                      right: i == categories.length - 1 ? 0 : 8,
-                    ),
+                    padding: EdgeInsets.only(left: i == 0 ? 0 : 8, right: i == categories.length - 1 ? 0 : 8),
                     child: ChoiceChip(
                       showCheckmark: false,
                       label: Center(child: Text(cat.toLowerCase())),
                       selected: isSelected,
                       backgroundColor: Colors.white,
                       selectedColor: const Color(0xFF184D83),
-                      shape: const StadiumBorder(
-                        side: BorderSide(color: Color(0xFFBDBDBD), width: 1),
-                      ),
+                      shape: const StadiumBorder(side: BorderSide(color: Color(0xFFBDBDBD), width: 1)),
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       onSelected: (_) => setState(() => selectedCategory = cat),
                     ),
                   ),
@@ -562,104 +399,80 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
             ),
           ),
 
-          const SizedBox(height: 5),
-
-          // Cards (horizontal)
+          // Room cards (overlay dim + banner when fully booked)
           Expanded(
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              itemCount: roomsByCategory[selectedCategory]!.length,
+              itemCount: rooms.length,
               itemBuilder: (context, index) {
                 const double cardH = 420;
                 const double cardW = 320;
                 final double imgH = cardH * 0.70;
+                final room = rooms[index];
 
-                final room = roomsByCategory[selectedCategory]![index];
+                // fully booked if none of the slots == 'available'
+                final Map<String, String> statuses = Map<String, String>.from(room['statuses'] as Map);
+                final bool isFullyBookedToday = !statuses.values.any((v) => v == 'available');
 
-                return Container(
+                final card = Container(
                   width: cardW,
                   height: cardH,
-                  margin: EdgeInsets.only(
-                    left: index == 0 ? 0 : 12,
-                    right:
-                        index == roomsByCategory[selectedCategory]!.length - 1
-                        ? 0
-                        : 12,
-                  ),
+                  margin: EdgeInsets.only(left: index == 0 ? 0 : 12, right: index == rooms.length - 1 ? 0 : 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ─── Image (Top) ─────────────────────────────
+                      // Image
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
-                        ),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                         child: SizedBox(
                           height: imgH,
                           width: double.infinity,
                           child: Image.asset(room['image'], fit: BoxFit.cover),
                         ),
                       ),
-                      const SizedBox(height: 18),
-
-                      // ─── Info (Bottom) ──────────────────────────
+                      // Info
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(7, 4, 5, 1),
+                          padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                room['name'],
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                "${room['details']}  •  Max : ${room['max']} people",
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 16,
-                                  height: 1.25,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 25),
-
-                              // ─── Detail Button ──────────────────────
-                              Center(
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _showRoomDetailDialog(room),
-                                  icon: const Icon(
-                                    Icons.info_outline,
-                                    size: 18,
+                              Text(room['name'], style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 2),
+                              Text("${room['details']}  •  Max : ${room['max']} people",
+                                  style: const TextStyle(color: Colors.black54, fontSize: 12.5, height: 1.25)),
+                              const SizedBox(height: 15),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(color: const Color(0xFFF2F2F2), borderRadius: BorderRadius.circular(14)),
+                                    child: const Icon(Icons.groups_outlined, size: 18, color: Colors.black87),
                                   ),
-                                  label: const Text("Detail"),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF003366),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
+                                  const SizedBox(width: 10),
+                                  ElevatedButton.icon(
+                                    onPressed: () => _showSlotsDialog(room),
+                                    icon: const Icon(Icons.info_outline, size: 18),
+                                    label: const Text('Details'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: const Color(0xFF003366),
+                                      elevation: 0,
+                                      side: const BorderSide(color: Color(0xFFBDBDBD)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                     ),
                                   ),
-                                ),
+                                  const Spacer(),
+                                ],
                               ),
                             ],
                           ),
@@ -668,11 +481,165 @@ class _StaffBrowsingState extends State<StaffBrowsing> {
                     ],
                   ),
                 );
+
+                // overlay (dim + banner) without changing layout/pixels elsewhere
+return Container(
+  // move the margin here so both the card and overlay share the same bounds
+  margin: EdgeInsets.only(
+    left: index == 0 ? 0 : 12,
+    right: index == rooms.length - 1 ? 0 : 12,
+  ),
+  width: cardW,
+  height: cardH,
+  // clip everything (card + dim + banner) to the same rounded rect
+  clipBehavior: Clip.hardEdge,
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(16),
+  ),
+  child: Stack(
+    fit: StackFit.expand,
+    children: [
+      // the original card, but **without** its margin now
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: SizedBox(
+                height: imgH,
+                width: double.infinity,
+                child: Image.asset(room['image'], fit: BoxFit.cover),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                // keep your original paddings
+                padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(room['name'],
+                        style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(
+                      "${room['details']}  •  Max : ${room['max']} people",
+                      style: const TextStyle(color: Colors.black54, fontSize: 12.5, height: 1.25),
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      children: [
+                        Container(
+                          width: 28, height: 28,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F2F2),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.groups_outlined, size: 18, color: Colors.black87),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton.icon(
+                          onPressed: () => _showSlotsDialog(room),
+                          icon: const Icon(Icons.info_outline, size: 18),
+                          label: const Text('Details'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF003366),
+                            elevation: 0,
+                            side: const BorderSide(color: Color(0xFFBDBDBD)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                        const Spacer(),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // DIM + BANNER (only when fully booked)
+      if (!Map<String, String>.from(room['statuses'] as Map)
+          .values.any((v) => v == 'available')) ...[
+        // dim layer (now clipped to the same radius by parent)
+        Positioned.fill(
+          child: Container(color: Colors.white.withOpacity(0.60)),
+        ),
+        // banner
+        Positioned(
+          top: 10,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.80),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'This room is fully booked for today',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ],
+  ),
+);
+
               },
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// Header text
+class _HeaderText extends StatelessWidget {
+  const _HeaderText({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+        Text(subtitle, style: const TextStyle(color: Colors.white, fontSize: 22)),
+      ],
+    );
+  }
+}
+
+// Logout button
+class _LogoutBtn extends StatelessWidget {
+  const _LogoutBtn();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => showLogoutDialog(context),
+      icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
     );
   }
 }

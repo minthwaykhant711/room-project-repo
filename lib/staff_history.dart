@@ -79,6 +79,7 @@ class _StaffHistoryState extends State<StaffHistory>
       'booked_by': 'Emma',
       'reason': 'Exceeded booking limit for this week',
     },
+    
     {
       'room': 'Meeting Room A',
       'date': 'Fri, Sep 26',

@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/student_history.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class StudentBrowsing extends StatefulWidget {
   const StudentBrowsing({super.key});
@@ -62,137 +64,179 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     '14:00 - 16:00',
   ];
 
-  // Hard-coded rooms per category (student flavor)
-  late final Map<String, List<Map<String, dynamic>>> roomsByCategory = {
-    'Study': [
-      {
-        'name': 'Study Room A',
-        'details': 'Quiet, Whiteboard, Aircon',
-        'max': 4,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'reserved',
-          '13:00 - 14:00': 'pending',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room B.jpg',
-      },
-      {
-        'name': 'Study Room B',
-        'details': 'Quiet, Whiteboard',
-        'max': 6,
-        'statuses': {
-          '8:00 - 10:00': 'pending',
-          '10:00 - 12:00': 'available',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room B.jpg',
-      },
-      {
-        'name': 'Study Room C',
-        'details': 'Quiet, Whiteboard',
-        'max': 6,
-        'statuses': {
-          '8:00 - 10:00': 'pending',
-          '10:00 - 12:00': 'available',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room B.jpg',
-      },
-    ],
-    'Multimedia': [
-      {
-        'name': 'Multimedia Room A',
-        'details': 'TV, Aircon, Netflix, Prime',
-        'max': 6,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/multi room A.jpg',
-      },
-      {
-        'name': 'Multimedia Room B',
-        'details': 'TV, Aircon, Netflix, Prime',
-        'max': 4,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/multi room A.jpg',
-      },
-      {
-        'name': 'Multimedia Room C',
-        'details': 'TV, Aircon, Netflix, Prime',
-        'max': 8,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/multi room A.jpg',
-      },
-    ],
-    'Meeting': [
-      {
-        'name': 'Meeting Room A',
-        'details': 'TV, Aircon, Projects',
-        'max': 6,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room A.jpg',
-      },
-      {
-        'name': 'Meeting Room B',
-        'details': 'Whiteboard, Aircon',
-        'max': 4,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room A.jpg',
-      },
-      {
-        'name': 'Meeting Room C',
-        'details': 'Whiteboard, Aircon',
-        'max': 4,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room A.jpg',
-      },
-    ],
+  late Map<String, List<Map<String, dynamic>>> roomsByCategory = {
+    for (final c in ['Study', 'Multimedia', 'Meeting']) c: [],
   };
+
+  Map<int, String> slotDisplayById = {};
+
+  List<Map<String, dynamic>> bookingsForDate = [];
+
+  final String baseUrl = 'http://127.0.0.1:3000';
 
   // Each category keeps its own selected time per card
   late Map<String, Map<int, String>> selectedTimesByCat;
 
+  bool isLoading = false;
+
   @override
   void initState() {
     super.initState();
-    selectedTimesByCat = {
-      for (final cat in categories)
-        cat: {
-          for (int i = 0; i < roomsByCategory[cat]!.length; i++)
-            i: timeSlots.first,
-        },
-    };
+    selectedTimesByCat = {for (final cat in categories) cat: {}};
+    _fetchInitialData();
+  }
+
+  Future<void> _fetchInitialData() async {
+    setState(() => isLoading = true);
+    try {
+      await Future.wait([_fetchTimeSlots(), _fetchRooms()]);
+      // after rooms & slots fetched, set default selectedTimesByCat entries
+      for (final cat in categories) {
+        final rooms = roomsByCategory[cat]!;
+        selectedTimesByCat[cat] = {
+          for (int i = 0; i < rooms.length; i++)
+            i: slotDisplayById.isNotEmpty
+                ? slotDisplayById.values.first
+                : timeSlots.first,
+        };
+      }
+      // fetch bookings for today to derive statuses
+      final today = DateTime.now();
+      final dateStr =
+          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      await _fetchBookingsByDate(dateStr);
+      _applyBookingsToRooms();
+    } catch (e) {
+      // ignore — you may want to show a message
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _fetchTimeSlots() async {
+    final res = await http.get(Uri.parse('$baseUrl/api/timeslots'));
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as List;
+      slotDisplayById.clear();
+      for (final item in data) {
+        final id = item['slot_id'] as int;
+        final start = (item['start_time'] as String).substring(0, 5);
+        final end = (item['end_time'] as String).substring(0, 5);
+        slotDisplayById[id] = '$start - $end';
+      }
+    }
+  }
+
+  Future<void> _fetchRooms() async {
+    final res = await http.get(Uri.parse('$baseUrl/api/rooms'));
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as List;
+      // clear previous
+      roomsByCategory = {for (final c in categories) c: []};
+      for (final r in data) {
+        final name = (r['room_name'] ?? '').toString();
+        final description = (r['description'] ?? '').toString();
+        final capacity = (r['capacity'] ?? 0) as int;
+        final rawImage = (r['image'] ?? '').toString();
+        final roomStatus = (r['room_status'] ?? 1) as int; // keep status
+
+        // classify category by name heuristic:
+        String category = 'Meeting';
+        final lname = name.toLowerCase();
+        if (lname.contains('multimedia') || lname.contains('multi'))
+          category = 'Multimedia';
+        else if (lname.contains('study'))
+          category = 'Study';
+        else
+          category = 'Meeting';
+
+        // attempt to build image URL — fallback to local asset if not available
+        String imageUrl = rawImage.trim();
+        if (imageUrl.isNotEmpty &&
+            !imageUrl.startsWith('http') &&
+            !imageUrl.startsWith('/')) {
+          imageUrl = '$baseUrl/images/$imageUrl';
+        }
+
+        // initialize statuses. If room is disabled, mark all slots as 'disabled'
+        final initialStatuses = <String, String>{
+          for (final s in slotDisplayById.values)
+            s: roomStatus == 1 ? 'available' : 'disabled',
+        };
+
+        final roomMap = {
+          'room_id': r['room_id'],
+          'name': name,
+          'details': description,
+          'max': capacity,
+          'image': imageUrl,
+          'room_status': roomStatus,
+          'statuses': initialStatuses,
+        };
+
+        roomsByCategory[category]!.add(roomMap);
+      }
+      // ensure at least default selectedCategory exists
+      if (!roomsByCategory.containsKey(selectedCategory)) {
+        selectedCategory = categories.first;
+      }
+    }
+  }
+
+  Future<void> _fetchBookingsByDate(String date) async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/bookings_by_date?date=$date'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as List;
+      bookingsForDate = data
+          .map<Map<String, dynamic>>(
+            (e) => {
+              'room_id': e['room_id'],
+              'slot_id': e['slot_id'],
+              'booking_status': e['booking_status'],
+              'user_id': e['user_id'],
+            },
+          )
+          .toList();
+    }
+  }
+
+  void _applyBookingsToRooms() {
+    final slotIdToDisplay = slotDisplayById;
+    for (final cat in roomsByCategory.keys) {
+      for (final room in roomsByCategory[cat]!) {
+        final roomId = room['room_id'];
+        final roomStatus = room['room_status'] ?? 1;
+        final statuses = <String, String>{
+          for (final s in slotIdToDisplay.values)
+            s: roomStatus == 1 ? 'available' : 'disabled',
+        };
+        for (final b in bookingsForDate) {
+          if (b['room_id'] == roomId) {
+            final slotId = b['slot_id'] as int;
+            final display = slotIdToDisplay[slotId];
+            if (display == null) continue;
+            if (b['disabled'] == true) {
+              statuses[display] = 'disabled';
+              continue;
+            }
+            final bookingStatus = (b['booking_status'] ?? '')
+                .toString()
+                .toLowerCase();
+            if (bookingStatus.contains('approve'))
+              statuses[display] = 'reserved';
+            else if (bookingStatus.contains('wait') ||
+                bookingStatus.contains('pending'))
+              statuses[display] = 'pending';
+            else
+              statuses[display] = 'reserved';
+          }
+        }
+        room['statuses'] = statuses;
+      }
+    }
+    if (mounted) setState(() {});
   }
 
   void _showRoomDetailDialog(Map<String, dynamic> room) {
@@ -706,7 +750,24 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                         child: SizedBox(
                           height: imgH,
                           width: double.infinity,
-                          child: Image.asset(room['image'], fit: BoxFit.cover),
+                          child:
+                              room['image'] != null &&
+                                  room['image'].toString().startsWith('http')
+                              ? Image.network(
+                                  room['image'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) {
+                                    return Image.asset(
+                                      'assets/images/study room B.jpg',
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
+                                  room['image'] ??
+                                      'assets/images/study room B.jpg',
+                                  fit: BoxFit.cover,
+                                ),
                         ),
                       ),
                       const SizedBox(height: 18),

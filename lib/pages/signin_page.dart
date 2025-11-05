@@ -73,6 +73,7 @@ class _SignInPageState extends State<SignInPage> {
         await storage.setString('token', token);
         // decode token to get user role
         final user = jsonDecode(token);
+        await storage.setInt('user_id', user['user_id']);
         // debugPrint(user['role']);
 
         // to prevent warning of using 'context' in navigation

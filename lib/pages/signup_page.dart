@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'signin_page.dart';
 
+// 🔌 add these imports & base URL for wiring (iOS simulator uses localhost)
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+const String _baseUrl = 'http://localhost:3000';
+
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -25,7 +32,10 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  void _attemptSignUp() {
+  // 🔌 wired: calls your Node API (Argon2, no /api prefix), preserves your original UX:
+  // - validates fields
+  // - on success: shows success SnackBar and navigates to SignInPage
+  void _attemptSignUp() async {
     final email = _emailController.text.trim();
     final first = _firstNameController.text.trim();
     final last = _lastNameController.text.trim();
@@ -44,23 +54,50 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     if (pass != confirm) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Passwords do not match')));
       return;
     }
 
-    // Fake registration success: show confirmation then navigate to SignIn
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Registered successfully')));
+    try {
+      final resp = await http
+          .post(
+            Uri.parse('$_baseUrl/register/create'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email,
+              'password': pass,
+              'first_name': first,
+              'last_name': last, // backend defaults role to 'student'
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
-    Future.delayed(const Duration(milliseconds: 700), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const SignInPage()),
+      if (resp.statusCode == 201) {
+        // keep your original flow: success -> show message -> go to SignIn
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registered successfully')),
+        );
+        Future.delayed(const Duration(milliseconds: 700), () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const SignInPage()),
+          );
+        });
+      } else {
+        // backend sends plain text or JSON error; show whatever it sent
+        final msg = resp.body.isNotEmpty ? resp.body : 'Register failed';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } on TimeoutException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Timeout error, try again!')),
       );
-    });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Network error: $e')),
+      );
+    }
   }
 
   @override
@@ -88,21 +125,21 @@ class _SignUpPageState extends State<SignUpPage> {
                         fontSize: 49,
                         fontWeight: FontWeight.bold,
                       ),
-                      children: [
-                        const TextSpan(text: 'Sign '),
-                        const TextSpan(
+                      children: const [
+                        TextSpan(text: 'Sign '),
+                        TextSpan(
                           text: 'Up',
                           style: TextStyle(
                             decoration: TextDecoration.underline,
                             decorationThickness: 1,
                           ),
                         ),
-                        const TextSpan(text: ','),
+                        TextSpan(text: ','),
                       ],
                     ),
                   ),
                   const SizedBox(height: 15),
-                  Text(
+                  const Text(
                     'Keep pushing forward',
                     style: TextStyle(
                       color: Color(0xFF0E2A5D),
@@ -110,9 +147,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
-                  SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 8),
+                  const Text(
                     'Create your student account',
                     style: TextStyle(
                       color: Color(0xFF0E2A5D),
@@ -159,9 +195,8 @@ class _SignUpPageState extends State<SignUpPage> {
                             hintText: 'Email',
                             filled: true,
                             fillColor: Colors.grey.shade300,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 18,
-                            ),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 18),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none,
@@ -177,13 +212,13 @@ class _SignUpPageState extends State<SignUpPage> {
                               child: TextField(
                                 controller: _firstNameController,
                                 decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.person_outline),
+                                  prefixIcon:
+                                      const Icon(Icons.person_outline),
                                   hintText: 'First Name',
                                   filled: true,
                                   fillColor: Colors.grey.shade300,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 18,
-                                  ),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(vertical: 18),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(20),
                                     borderSide: BorderSide.none,
@@ -196,13 +231,13 @@ class _SignUpPageState extends State<SignUpPage> {
                               child: TextField(
                                 controller: _lastNameController,
                                 decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.person_outline),
+                                  prefixIcon:
+                                      const Icon(Icons.person_outline),
                                   hintText: 'Last Name',
                                   filled: true,
                                   fillColor: Colors.grey.shade300,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 18,
-                                  ),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(vertical: 18),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(20),
                                     borderSide: BorderSide.none,
@@ -223,9 +258,8 @@ class _SignUpPageState extends State<SignUpPage> {
                             hintText: 'Password',
                             filled: true,
                             fillColor: Colors.grey.shade300,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 18,
-                            ),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 18),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none,
@@ -243,9 +277,8 @@ class _SignUpPageState extends State<SignUpPage> {
                             hintText: 'Confirm Password',
                             filled: true,
                             fillColor: Colors.grey.shade300,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 18,
-                            ),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 18),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
                               borderSide: BorderSide.none,

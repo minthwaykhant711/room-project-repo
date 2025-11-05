@@ -1,5 +1,10 @@
+// lib/pages/student_browsing.dart
 import 'dart:ui';
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
 import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/student_history.dart';
 
@@ -12,6 +17,9 @@ class StudentBrowsing extends StatefulWidget {
 
 class _StudentBrowsingState extends State<StudentBrowsing> {
   // ────────────────────────────────────────────────────────────────────────────
+  // CONFIG (backend base URL)
+  static const String _baseUrl = 'http://localhost:3000';
+
   // Date formatter: FRI, OCT 24, 2025
   String _formatHeaderDate(DateTime d) {
     const w = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
@@ -21,7 +29,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     return '$weekday, $month ${d.day}, ${d.year}';
   }
 
-  // Status → color
+  // Status → color (UI helper; your chips use it)
   Color getStatusColor(String status) {
     switch (status) {
       case 'available': return Colors.teal;
@@ -35,114 +43,163 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   Color _chipBg(String status) => getStatusColor(status).withOpacity(0.12);
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Config
+  // Category chips (UI unchanged)
   final List<String> categories = ['Study', 'Multimedia', 'Meeting'];
   String selectedCategory = 'Multimedia';
 
-  final List<String> timeSlots = [
-    '8:00 - 10:00',
-    '10:00 - 12:00',
-    '13:00 - 14:00',
-    '14:00 - 16:00',
-  ];
+  // Time slots (loaded from backend; fallback to your 4 labels if API not available)
+  List<String> timeSlots = [];
 
-  // Hard-coded rooms per category (student flavor)
-  late final Map<String, List<Map<String, dynamic>>> roomsByCategory = {
-    'Study': [
-      {
-        'name': 'Study Room A',
-        'details': 'Quiet, Whiteboard, Aircon',
-        'max': 4,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'reserved',
-          '13:00 - 14:00': 'pending',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room A.jpg',
-      },
-      {
-        'name': 'Study Room B',
-        'details': 'Quiet, Whiteboard',
-        'max': 6,
-        'statuses': {
-          '8:00 - 10:00': 'pending',
-          '10:00 - 12:00': 'available',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room B.jpg',
-      },
-    ],
-    'Multimedia': [
-  {
-    'name': 'Multimedia Room A',
-    'details': 'TV, Aircon, Netflix, Prime',
-    'max': 6,
-    'statuses': {
-      '8:00 - 10:00': 'available',
-      '10:00 - 12:00': 'pending',
-      '13:00 - 14:00': 'reserved',
-      '14:00 - 16:00': 'disabled',
-    },
-    'image': 'assets/images/multi room A.jpg',
-  },
-  {
-    'name': 'Multimedia Room B', // ← fully booked example
-    'details': 'TV, Aircon, Netflix, Prime',
-    'max': 4,
-    'statuses': {
-      '8:00 - 10:00': 'reserved',
-      '10:00 - 12:00': 'pending',
-      '13:00 - 14:00': 'reserved',
-      '14:00 - 16:00': 'disabled',
-    },
-    'image': 'assets/images/multi room A.jpg',
-  },
-  {
-    'name': 'Multimedia Room C',
-    'details': 'TV, Aircon, Netflix, Prime',
-    'max': 8,
-    'statuses': {
-      '8:00 - 10:00': 'available',
-      '10:00 - 12:00': 'pending',
-      '13:00 - 14:00': 'reserved',
-      '14:00 - 16:00': 'disabled',
-    },
-    'image': 'assets/images/multi room A.jpg',
-  },
-],
-
-    'Meeting': [
-      {
-        'name': 'Meeting Room A',
-        'details': 'TV, Aircon, Projects',
-        'max': 6,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room A.jpg',
-      },
-      {
-        'name': 'Meeting Room B',
-        'details': 'Whiteboard, Aircon',
-        'max': 4,
-        'statuses': {
-          '8:00 - 10:00': 'available',
-          '10:00 - 12:00': 'pending',
-          '13:00 - 14:00': 'reserved',
-          '14:00 - 16:00': 'disabled',
-        },
-        'image': 'assets/images/study room A.jpg',
-      },
-    ],
+  // Rooms grouped by category for your horizontal cards (no hardcoded data now)
+  Map<String, List<Map<String, dynamic>>> roomsByCategory = {
+    'Study': [],
+    'Multimedia': [],
+    'Meeting': [],
   };
 
+  bool _loadingRooms = false;
+  bool _loadingSlots = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await _fetchTimeSlots(); // load slots first so the status labels exist
+    await _fetchRooms();     // then load rooms and build statuses per slot
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
-  // Dialogs
+  // Option B: infer category from the room name (no DB change needed)
+  String _guessCategory(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('multi')) return 'Multimedia';
+    if (n.contains('meet'))  return 'Meeting';
+    return 'Study';
+  }
+
+  // Load time slots from backend (GET /time-slots)
+  Future<void> _fetchTimeSlots() async {
+    setState(() => _loadingSlots = true);
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/time-slots'))
+          .timeout(const Duration(seconds: 10));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        if (data['ok'] == true && data['slots'] is List) {
+          final List slots = data['slots'];
+          final List<String> labels = [];
+          for (final s in slots) {
+            // backend fields: start_time, end_time (e.g. "08:00:00")
+            final st = (s['start_time'] ?? '').toString();
+            final et = (s['end_time'] ?? '').toString();
+            if (st.length >= 5 && et.length >= 5) {
+              labels.add('${st.substring(0,5)} - ${et.substring(0,5)}');
+            }
+          }
+          if (labels.isNotEmpty) {
+            setState(() => timeSlots = labels);
+          } else {
+            _useFallbackSlots();
+          }
+        } else {
+          _useFallbackSlots();
+        }
+      } else {
+        _useFallbackSlots();
+      }
+    } on TimeoutException {
+      _useFallbackSlots();
+    } catch (_) {
+      _useFallbackSlots();
+    } finally {
+      if (mounted) setState(() => _loadingSlots = false);
+    }
+  }
+
+  void _useFallbackSlots() {
+    // your original 4 labels
+    setState(() {
+      timeSlots = const [
+        '8:00 - 10:00',
+        '10:00 - 12:00',
+        '13:00 - 14:00',
+        '14:00 - 16:00',
+      ];
+    });
+  }
+
+  // Load rooms from backend (GET /rooms?available=1), group by category, keep your UI shape
+  Future<void> _fetchRooms() async {
+    setState(() => _loadingRooms = true);
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/rooms?available=1'))
+          .timeout(const Duration(seconds: 10));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        if (data['ok'] == true && data['rooms'] is List) {
+          final List rooms = data['rooms'];
+
+          // Prepare fresh buckets
+          final Map<String, List<Map<String, dynamic>>> grouped = {
+            'Study': [],
+            'Multimedia': [],
+            'Meeting': [],
+          };
+
+          for (final r in rooms) {
+            final name = (r['name'] ?? '').toString();
+            final desc = (r['description'] ?? '').toString();
+            final imageUrl = (r['image_url'] ?? '').toString();
+
+            // infer category from name
+            final cat = _guessCategory(name);
+
+            // build default statuses for each fetched slot label
+            final Map<String, String> statuses = {
+              for (final slot in timeSlots) slot: 'available'
+            };
+
+            final mapped = {
+              'name': name,
+              'details': desc.isNotEmpty ? desc : 'Room',
+              'max': 6, // no capacity in DB; keep constant to preserve your UI text
+              'statuses': statuses,
+              'image': imageUrl.isNotEmpty ? imageUrl : 'assets/images/study room A.jpg',
+            };
+
+            grouped[cat]!.add(mapped);
+          }
+
+          setState(() {
+            roomsByCategory = grouped;
+          });
+        } else {
+          _snack('Invalid rooms response');
+        }
+      } else {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load rooms');
+      }
+    } on TimeoutException {
+      _snack('Timeout while loading rooms');
+    } catch (e) {
+      _snack('Network error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingRooms = false);
+    }
+  }
+
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Dialogs (UNCHANGED VISUALS)
 
   // Details → chips for all time slots
   Future<void> _showSlotsDialog(Map<String, dynamic> room) async {
@@ -221,7 +278,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     );
   }
 
-  // Confirm dialog with required objective
+  // Confirm dialog (UNCHANGED VISUALS)
   Future<void> _showConfirmDialog({
     required Map<String, dynamic> room,
     required String slot,
@@ -299,6 +356,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       ? () async {
                           Navigator.of(ctx).pop();
                           await _showSuccessDialog();
+                          // next step: call POST /bookings here
                         }
                       : null,
                   child: const Text('Confirm'),
@@ -320,7 +378,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     );
   }
 
-  // Success dialog
+  // Success dialog (UNCHANGED VISUALS)
   Future<void> _showSuccessDialog() async {
     showDialog(
       context: context,
@@ -351,7 +409,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   @override
   Widget build(BuildContext context) {
     final headerHeight = MediaQuery.of(context).size.height * 0.28;
-    final rooms = roomsByCategory[selectedCategory]!;
+
+    // choose list by selected chip
+    final rooms = roomsByCategory[selectedCategory] ?? const [];
 
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
@@ -403,7 +463,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
       // Body
       body: Column(
         children: [
-          // Header
+          // Header (UNCHANGED)
           Container(
             width: double.infinity,
             height: headerHeight,
@@ -463,7 +523,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
           const SizedBox(height: 10),
 
-          // Category chips (3 across, no checkmark)
+          // Category chips (UNCHANGED)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(
@@ -497,150 +557,156 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
           const SizedBox(height: 5),
 
-          // Cards (horizontal list) with “fully booked today” overlay when needed
+          // Cards (UNCHANGED LAYOUT; driven by API)
           Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              itemCount: rooms.length,
-              itemBuilder: (context, index) {
-                const double cardH = 420;
-                const double cardW = 320;
-                final double imgH = cardH * 0.70;
+            child: (_loadingRooms || _loadingSlots)
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    itemCount: rooms.length,
+                    itemBuilder: (context, index) {
+                      const double cardH = 420;
+                      const double cardW = 320;
+                      final double imgH = cardH * 0.70;
 
-                final room = rooms[index];
-                final Map<String, String> statuses =
-                    Map<String, String>.from(room['statuses'] as Map);
-                final bool isFullyBookedToday =
-                    !statuses.values.any((v) => v == 'available');
+                      final room = rooms[index];
+                      final Map<String, String> statuses =
+                          Map<String, String>.from(room['statuses'] as Map);
+                      final bool isFullyBookedToday =
+                          !statuses.values.any((v) => v == 'available');
 
-                return Container(
-                  margin: EdgeInsets.only(
-                    left: index == 0 ? 0 : 12,
-                    right: index == rooms.length - 1 ? 0 : 12,
-                  ),
-                  width: cardW,
-                  height: cardH,
-                  clipBehavior: Clip.hardEdge,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Card
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
-                          ],
+                      final String img = (room['image'] ?? '').toString();
+                      final bool isNetwork = img.startsWith('http://') || img.startsWith('https://');
+
+                      return Container(
+                        margin: EdgeInsets.only(
+                          left: index == 0 ? 0 : 12,
+                          right: index == rooms.length - 1 ? 0 : 12,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        width: cardW,
+                        height: cardH,
+                        clipBehavior: Clip.hardEdge,
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+                        child: Stack(
+                          fit: StackFit.expand,
                           children: [
-                            // Image
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                              child: SizedBox(
-                                height: imgH,
-                                width: double.infinity,
-                                child: Image.asset(room['image'], fit: BoxFit.cover),
+                            // Card
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: const [
+                                  BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Image (auto: network if URL, else your asset path)
+                                  ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                    child: SizedBox(
+                                      height: imgH,
+                                      width: double.infinity,
+                                      child: isNetwork
+                                          ? Image.network(img, fit: BoxFit.cover)
+                                          : Image.asset(img, fit: BoxFit.cover),
+                                    ),
+                                  ),
+                                  // Info (UNCHANGED)
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(room['name'],
+                                              style: const TextStyle(
+                                                  fontSize: 16.5, fontWeight: FontWeight.w700),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "${room['details']}  •  Max : ${room['max']} people",
+                                            style: const TextStyle(
+                                                color: Colors.black54, fontSize: 12.5, height: 1.25),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis),
+                                          const SizedBox(height: 15),
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 28,
+                                                height: 28,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFF2F2F2),
+                                                  borderRadius: BorderRadius.circular(14),
+                                                ),
+                                                child: const Icon(Icons.groups_outlined,
+                                                    size: 18, color: Colors.black87),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              ElevatedButton.icon(
+                                                onPressed: () => _showSlotsDialog(room),
+                                                icon: const Icon(Icons.info_outline, size: 18),
+                                                label: const Text('Details'),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.white,
+                                                  foregroundColor: const Color(0xFF003366),
+                                                  elevation: 0,
+                                                  side: const BorderSide(color: Color(0xFFBDBDBD)),
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(10)),
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 12, vertical: 10),
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            // Info
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(room['name'],
-                                        style: const TextStyle(
-                                            fontSize: 16.5, fontWeight: FontWeight.w700),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "${room['details']}  •  Max : ${room['max']} people",
-                                      style: const TextStyle(
-                                          color: Colors.black54, fontSize: 12.5, height: 1.25),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+
+                            // Overlay if fully booked (dim + banner)
+                            if (isFullyBookedToday) ...[
+                              Positioned.fill(
+                                child: Container(color: Colors.white.withOpacity(0.60)),
+                              ),
+                              Positioned(
+                                top: 10,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.80),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
-                                    const SizedBox(height: 15),
-                                    Row(
-                                      children: [
-                                        Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF2F2F2),
-                                            borderRadius: BorderRadius.circular(14),
-                                          ),
-                                          child: const Icon(Icons.groups_outlined,
-                                              size: 18, color: Colors.black87),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        ElevatedButton.icon(
-                                          onPressed: () => _showSlotsDialog(room),
-                                          icon: const Icon(Icons.info_outline, size: 18),
-                                          label: const Text('Details'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white,
-                                            foregroundColor: const Color(0xFF003366),
-                                            elevation: 0,
-                                            side: const BorderSide(color: Color(0xFFBDBDBD)),
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(10)),
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 10),
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                      ],
+                                    child: const Text(
+                                      'This room is fully booked for today',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12.5,
+                                      ),
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
-                      ),
-
-                      // Overlay if fully booked (dim + banner)
-                      if (isFullyBookedToday) ...[
-                        Positioned.fill(
-                          child: Container(color: Colors.white.withOpacity(0.60)),
-                        ),
-                        Positioned(
-                          top: 10,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.80),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Text(
-                                'This room is fully booked for today',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -648,7 +714,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   }
 }
 
-// Reusable header text
+// Reusable header text (UNCHANGED)
 class _HeaderText extends StatelessWidget {
   const _HeaderText({required this.title, required this.subtitle});
   final String title;

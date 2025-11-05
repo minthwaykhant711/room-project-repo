@@ -10,7 +10,8 @@ import 'package:flutter_application_1/student_history.dart';
 
 class StudentBrowsing extends StatefulWidget {
   const StudentBrowsing({super.key});
-
+    static String? mobileTokenUserId;
+  static void setMobileToken(String userId) => mobileTokenUserId = userId;
   @override
   State<StudentBrowsing> createState() => _StudentBrowsingState();
 }
@@ -19,6 +20,30 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   // ────────────────────────────────────────────────────────────────────────────
   // CONFIG (backend base URL)
   static const String _baseUrl = 'http://localhost:3000';
+
+  // If you set this from SignIn, it will be sent as Authorization: Bearer <userId>
+  static String? _mobileTokenUserId;
+  static void setMobileToken(String userId) {
+    _mobileTokenUserId = userId;
+  }
+
+  Map<String, String> _authHeaders() {
+  final id = StudentBrowsing.mobileTokenUserId;
+  if (id != null && id.isNotEmpty) {
+    return {
+      'Authorization': 'Bearer $id',
+      'Content-Type': 'application/json',
+    };
+  }
+  return {'Content-Type': 'application/json'};
+}
+
+
+  // user greeting
+  String _firstName = '';
+
+  // selected date (today only in this screen)
+  late final String _todayYMD;
 
   // Date formatter: FRI, OCT 24, 2025
   String _formatHeaderDate(DateTime d) {
@@ -29,13 +54,14 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     return '$weekday, $month ${d.day}, ${d.year}';
   }
 
-  // Status → color (UI helper; your chips use it)
+  // Status → color (UI helper)
   Color getStatusColor(String status) {
     switch (status) {
       case 'available': return Colors.teal;
       case 'pending':   return Colors.orange;
       case 'reserved':  return const Color.fromARGB(255, 12, 143, 209);
-      case 'disabled':  return Colors.red;
+      case 'disabled':  return Colors.red;   // room offline
+      case 'passed':    return Colors.grey;  // time already started (today)
       default:          return Colors.grey;
     }
   }
@@ -47,32 +73,34 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   final List<String> categories = ['Study', 'Multimedia', 'Meeting'];
   String selectedCategory = 'Multimedia';
 
-  // Time slots (loaded from backend; fallback to your 4 labels if API not available)
+  // time slot labels (from backend availability response)
   List<String> timeSlots = [];
 
-  // Rooms grouped by category for your horizontal cards (no hardcoded data now)
+  // Rooms grouped by category for your horizontal cards
+  // Each room map now carries a boolean 'disabled' for the whole-room state.
   Map<String, List<Map<String, dynamic>>> roomsByCategory = {
     'Study': [],
     'Multimedia': [],
     'Meeting': [],
   };
 
-  bool _loadingRooms = false;
-  bool _loadingSlots = false;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _todayYMD =
+        "${now.year.toString().padLeft(4,'0')}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}";
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
-    await _fetchTimeSlots(); // load slots first so the status labels exist
-    await _fetchRooms();     // then load rooms and build statuses per slot
+    await _fetchMe();          // "Hi, <first_name>"
+    await _fetchAvailability(); // statuses incl. 'pending', 'reserved', 'passed', 'disabled'
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Option B: infer category from the room name (no DB change needed)
+  // Infer category from room name (no DB change)
   String _guessCategory(String name) {
     final n = name.toLowerCase();
     if (n.contains('multi')) return 'Multimedia';
@@ -80,71 +108,49 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     return 'Study';
   }
 
-  // Load time slots from backend (GET /time-slots)
-  Future<void> _fetchTimeSlots() async {
-    setState(() => _loadingSlots = true);
+  Future<void> _fetchMe() async {
     try {
       final resp = await http
-          .get(Uri.parse('$_baseUrl/time-slots'))
-          .timeout(const Duration(seconds: 10));
+          .get(Uri.parse('$_baseUrl/me'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        if (data['ok'] == true && data['slots'] is List) {
-          final List slots = data['slots'];
-          final List<String> labels = [];
-          for (final s in slots) {
-            // backend fields: start_time, end_time (e.g. "08:00:00")
-            final st = (s['start_time'] ?? '').toString();
-            final et = (s['end_time'] ?? '').toString();
-            if (st.length >= 5 && et.length >= 5) {
-              labels.add('${st.substring(0,5)} - ${et.substring(0,5)}');
-            }
+        final data = jsonDecode(resp.body);
+        if (data is Map && data['ok'] == true && data['user'] is Map) {
+          final u = data['user'] as Map;
+          final fn = (u['first_name'] ?? '').toString().trim();
+          if (fn.isNotEmpty && mounted) setState(() => _firstName = fn);
+          if (u['id'] != null && _mobileTokenUserId == null) {
+            _mobileTokenUserId = u['id'].toString();
           }
-          if (labels.isNotEmpty) {
-            setState(() => timeSlots = labels);
-          } else {
-            _useFallbackSlots();
-          }
-        } else {
-          _useFallbackSlots();
         }
-      } else {
-        _useFallbackSlots();
+      } else if (resp.statusCode == 401) {
+        if (mounted) setState(() => _firstName = '');
       }
-    } on TimeoutException {
-      _useFallbackSlots();
-    } catch (_) {
-      _useFallbackSlots();
-    } finally {
-      if (mounted) setState(() => _loadingSlots = false);
-    }
+    } catch (_) {/* greeting is non-fatal */}
   }
 
-  void _useFallbackSlots() {
-    // your original 4 labels
-    setState(() {
-      timeSlots = const [
-        '8:00 - 10:00',
-        '10:00 - 12:00',
-        '13:00 - 14:00',
-        '14:00 - 16:00',
-      ];
-    });
-  }
-
-  // Load rooms from backend (GET /rooms?available=1), group by category, keep your UI shape
-  Future<void> _fetchRooms() async {
-    setState(() => _loadingRooms = true);
+  // Load availability for today (GET /rooms/availability?date=YYYY-MM-DD)
+  Future<void> _fetchAvailability() async {
+    setState(() => _loading = true);
     try {
-      final resp = await http
-          .get(Uri.parse('$_baseUrl/rooms?available=1'))
-          .timeout(const Duration(seconds: 10));
+      final url = Uri.parse('$_baseUrl/rooms/availability?date=$_todayYMD');
+      final resp = await http.get(url, headers: _authHeaders()).timeout(const Duration(seconds: 12));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         if (data['ok'] == true && data['rooms'] is List) {
-          final List rooms = data['rooms'];
+          // slots labels from server
+          if (data['slots'] is List) {
+            final List list = data['slots'];
+            final labels = <String>[];
+            for (final s in list) {
+              final st = (s['start_time'] ?? '').toString();
+              final et = (s['end_time'] ?? '').toString();
+              if (st.length >= 2 && et.length >= 2) labels.add('$st - $et');
+            }
+            if (labels.isNotEmpty) timeSlots = labels;
+          }
 
-          // Prepare fresh buckets
+          final List rooms = data['rooms'];
           final Map<String, List<Map<String, dynamic>>> grouped = {
             'Study': [],
             'Multimedia': [],
@@ -155,41 +161,106 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             final name = (r['name'] ?? '').toString();
             final desc = (r['description'] ?? '').toString();
             final imageUrl = (r['image_url'] ?? '').toString();
+            final roomDisabled = r['disabled'] == true;
 
-            // infer category from name
-            final cat = _guessCategory(name);
+            Map<String, dynamic> rawStatuses = {};
+            if (r['statuses'] is Map<String, dynamic>) {
+              rawStatuses = (r['statuses'] as Map<String, dynamic>);
+            }
 
-            // build default statuses for each fetched slot label
             final Map<String, String> statuses = {
-              for (final slot in timeSlots) slot: 'available'
+              for (final slot in timeSlots) slot: (rawStatuses[slot]?.toString() ?? 'available')
             };
 
-            final mapped = {
+            final cat = _guessCategory(name);
+            grouped[cat]!.add({
+              'id': r['id'],
               'name': name,
               'details': desc.isNotEmpty ? desc : 'Room',
-              'max': 6, // no capacity in DB; keep constant to preserve your UI text
+              'max': 6, // keep UI text
               'statuses': statuses,
+              'disabled': roomDisabled, // <-- carry to UI
               'image': imageUrl.isNotEmpty ? imageUrl : 'assets/images/study room A.jpg',
-            };
-
-            grouped[cat]!.add(mapped);
+            });
           }
 
-          setState(() {
-            roomsByCategory = grouped;
-          });
+          if (mounted) setState(() => roomsByCategory = grouped);
         } else {
-          _snack('Invalid rooms response');
+          _snack('Invalid availability response');
         }
       } else {
-        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load rooms');
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load availability');
       }
     } on TimeoutException {
-      _snack('Timeout while loading rooms');
+      _snack('Timeout while loading availability');
     } catch (e) {
       _snack('Network error: $e');
     } finally {
-      if (mounted) setState(() => _loadingRooms = false);
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // Create a booking
+  Future<bool> _createBooking({
+    required int roomId,
+    required String slotLabel,
+    required String objective,
+  }) async {
+    try {
+      // map slotLabel ("HH:MM - HH:MM") → slot_id using /time-slots
+      final start = slotLabel.split(' - ').first;
+      final ts = await http
+          .get(Uri.parse('$_baseUrl/time-slots'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 8));
+      if (ts.statusCode != 200) {
+        _snack('Cannot load time slots');
+        return false;
+      }
+      final tsData = jsonDecode(ts.body);
+      if (tsData is! Map || tsData['ok'] != true || tsData['slots'] is! List) {
+        _snack('Invalid time slots');
+        return false;
+      }
+      int? slotId;
+      for (final s in (tsData['slots'] as List)) {
+        final st = (s['start_time'] ?? '').toString().substring(0, 5);
+        if (st == start) {
+          slotId = s['slot_id'] as int?;
+          break;
+        }
+      }
+      if (slotId == null) {
+        _snack('Slot not found');
+        return false;
+      }
+
+      final resp = await http
+          .post(
+            Uri.parse('$_baseUrl/bookings'),
+            headers: _authHeaders(),
+            body: jsonEncode({
+              'room_id': roomId,
+              'slot_id': slotId,
+              'booking_date': _todayYMD,
+              'objective': objective,
+            }),
+          )
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode == 201) {
+        return true;
+      } else {
+        try {
+          final err = jsonDecode(resp.body);
+          _snack(err is Map && err['error'] != null ? err['error'] : 'Booking failed');
+        } catch (_) {
+          _snack(resp.body.isNotEmpty ? resp.body : 'Booking failed');
+        }
+        return false;
+      }
+    } catch (e) {
+      _snack('Booking error: $e');
+      return false;
     }
   }
 
@@ -199,7 +270,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Dialogs (UNCHANGED VISUALS)
+  // Dialogs (UI visuals unchanged)
 
   // Details → chips for all time slots
   Future<void> _showSlotsDialog(Map<String, dynamic> room) async {
@@ -233,8 +304,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               spacing: 10,
               runSpacing: 10,
               children: timeSlots.map((slot) {
-                final status = (room['statuses'][slot] as String?) ?? 'unknown';
-                final enabled = status == 'available';
+                final status = (room['statuses'][slot] as String?) ?? 'available';
+                final enabled = status == 'available'; // only available is clickable
                 final color = getStatusColor(status);
 
                 return InputChip(
@@ -265,7 +336,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                           Navigator.of(ctx).pop();
                           await _showConfirmDialog(room: room, slot: slot);
                         }
-                      : null, // disabled when not available
+                      : null,
                   shape: const StadiumBorder(
                     side: BorderSide(color: Color(0xFFE0E0E0)),
                   ),
@@ -278,7 +349,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     );
   }
 
-  // Confirm dialog (UNCHANGED VISUALS)
+  // Confirm dialog with required objective
   Future<void> _showConfirmDialog({
     required Map<String, dynamic> room,
     required String slot,
@@ -355,8 +426,27 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                   onPressed: canConfirm
                       ? () async {
                           Navigator.of(ctx).pop();
-                          await _showSuccessDialog();
-                          // next step: call POST /bookings here
+                          final ok = await _createBooking(
+                            roomId: (room['id'] as int),
+                            slotLabel: slot,
+                            objective: controller.text.trim(),
+                          );
+                          if (ok) {
+                            // quick local feedback: mark slot pending
+                            setState(() {
+                              final cat = _guessCategory((room['name'] as String));
+                              final list = roomsByCategory[cat]!;
+                              final idx = list.indexWhere((e) => e['id'] == room['id']);
+                              if (idx >= 0) {
+                                final statuses = Map<String, String>.from(list[idx]['statuses'] as Map);
+                                statuses[slot] = 'pending';
+                                list[idx]['statuses'] = statuses;
+                              }
+                            });
+                            await _showSuccessDialog();
+                            // sync with DB
+                            await _fetchAvailability();
+                          }
                         }
                       : null,
                   child: const Text('Confirm'),
@@ -378,7 +468,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     );
   }
 
-  // Success dialog (UNCHANGED VISUALS)
+  // Success dialog
   Future<void> _showSuccessDialog() async {
     showDialog(
       context: context,
@@ -386,11 +476,11 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
       builder: (_) => Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+        child: const Padding(
+          padding: EdgeInsets.fromLTRB(20, 24, 20, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Icon(Icons.check_circle, size: 140, color: Colors.green),
               SizedBox(height: 14),
               Text('Your reservation is completed',
@@ -409,14 +499,12 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   @override
   Widget build(BuildContext context) {
     final headerHeight = MediaQuery.of(context).size.height * 0.28;
-
-    // choose list by selected chip
     final rooms = roomsByCategory[selectedCategory] ?? const [];
 
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
 
-      // Bottom nav (student: Home == this page)
+      // Bottom nav
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -463,7 +551,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
       // Body
       body: Column(
         children: [
-          // Header (UNCHANGED)
+          // Header (greeting uses _firstName)
           Container(
             width: double.infinity,
             height: headerHeight,
@@ -484,7 +572,10 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const _HeaderText(title: 'Hi, David', subtitle: 'Reserve the room'),
+                      _HeaderText(
+                        title: _firstName.isNotEmpty ? 'Hi, $_firstName' : 'Hi,',
+                        subtitle: 'Reserve the room',
+                      ),
                       IconButton(
                         onPressed: () => showLogoutDialog(context),
                         icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
@@ -557,9 +648,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
           const SizedBox(height: 5),
 
-          // Cards (UNCHANGED LAYOUT; driven by API)
+          // Cards (UNCHANGED layout; overlay message adjusted)
           Expanded(
-            child: (_loadingRooms || _loadingSlots)
+            child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.builder(
                     scrollDirection: Axis.horizontal,
@@ -574,8 +665,17 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       final room = rooms[index];
                       final Map<String, String> statuses =
                           Map<String, String>.from(room['statuses'] as Map);
-                      final bool isFullyBookedToday =
+                      final bool roomDisabled = room['disabled'] == true;
+
+                      // "fully booked today": every slot is NOT available (but not disabled)
+                      final bool isFullyBookedToday = !roomDisabled &&
                           !statuses.values.any((v) => v == 'available');
+
+                      final String overlayText = roomDisabled
+                          ? 'This room is disabled'
+                          : (isFullyBookedToday
+                              ? 'This room is fully booked for today'
+                              : '');
 
                       final String img = (room['image'] ?? '').toString();
                       final bool isNetwork = img.startsWith('http://') || img.startsWith('https://');
@@ -604,7 +704,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Image (auto: network if URL, else your asset path)
+                                  // Image
                                   ClipRRect(
                                     borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                                     child: SizedBox(
@@ -615,7 +715,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                                           : Image.asset(img, fit: BoxFit.cover),
                                     ),
                                   ),
-                                  // Info (UNCHANGED)
+                                  // Info
                                   Expanded(
                                     child: Padding(
                                       padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
@@ -674,8 +774,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                               ),
                             ),
 
-                            // Overlay if fully booked (dim + banner)
-                            if (isFullyBookedToday) ...[
+                            // Overlay if DISABLED or FULLY BOOKED (same visuals; different text)
+                            if (overlayText.isNotEmpty) ...[
                               Positioned.fill(
                                 child: Container(color: Colors.white.withOpacity(0.60)),
                               ),
@@ -690,9 +790,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                                       color: Colors.black.withOpacity(0.80),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
-                                    child: const Text(
-                                      'This room is fully booked for today',
-                                      style: TextStyle(
+                                    child: Text(
+                                      overlayText,
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 12.5,

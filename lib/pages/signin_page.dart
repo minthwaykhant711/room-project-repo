@@ -65,20 +65,28 @@ class _SignInPageState extends State<SignInPage> {
           .timeout(const Duration(seconds: 10));
       // check server's response
       if (response.statusCode == 200) {
-        // get token and save to local storage
-        String token = response.body;
-        // debugPrint(token);
+        // decode response body (backend returns JSON with user_id, first_name, role, ...)
+        final user = jsonDecode(response.body);
 
         final storage = await SharedPreferences.getInstance();
-        await storage.setString('token', token);
-        // decode token to get user role
-        final user = jsonDecode(token);
+        // save user id and first name (so StudentBrowsing can read it)
         await storage.setInt('user_id', user['user_id']);
-        // debugPrint(user['role']);
+        await storage.setString(
+          'first_name',
+          (user['first_name'] ?? '').toString(),
+        );
+        // optionally save role/token if available
+        if (user.containsKey('role')) {
+          await storage.setString('role', (user['role'] ?? '').toString());
+        }
+        // if backend sends a token, store it under 'token'
+        if (response.body.isNotEmpty) {
+          // only store token if backend actually provides one (adjust as needed)
+          // await storage.setString('token', yourTokenString);
+        }
 
-        // to prevent warning of using 'context' in navigation
+        // navigate
         if (!mounted) return;
-        // navigate to admin page or user page
         if (user['role'] == 'student') {
           Navigator.pushReplacement(
             context,
@@ -101,10 +109,10 @@ class _SignInPageState extends State<SignInPage> {
             ),
           );
         }
-      } else {
-        // wrong username or password
-        popDialog(response.body);
+        return;
       }
+      // wrong username or password
+      popDialog(response.body);
     } on TimeoutException catch (e) {
       debugPrint(e.message);
       popDialog('Timeout error, try again!');

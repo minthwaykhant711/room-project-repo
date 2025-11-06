@@ -4,6 +4,7 @@ import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/student_history.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StudentBrowsing extends StatefulWidget {
   const StudentBrowsing({super.key});
@@ -69,10 +70,18 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   };
 
   Map<int, String> slotDisplayById = {};
+  Map<String, int> slotIdByDisplay = {};
+  Map<int, String> slotStartById = {}; // "HH:mm"
+  Map<int, String> slotEndById = {}; // "HH:mm"
 
   List<Map<String, dynamic>> bookingsForDate = [];
 
+  // emulator-friendly default. Use your Mac IP for a real device.
   final String baseUrl = 'http://127.0.0.1:3000';
+
+  int? currentUserId;
+  bool userHasBookingToday = false;
+  String firstName = 'User';
 
   // Each category keeps its own selected time per card
   late Map<String, Map<int, String>> selectedTimesByCat;
@@ -89,6 +98,10 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   Future<void> _fetchInitialData() async {
     setState(() => isLoading = true);
     try {
+      final prefs = await SharedPreferences.getInstance();
+      currentUserId = prefs.getInt('user_id');
+      firstName = prefs.getString('first_name') ?? 'User';
+
       await Future.wait([_fetchTimeSlots(), _fetchRooms()]);
       // after rooms & slots fetched, set default selectedTimesByCat entries
       for (final cat in categories) {
@@ -105,6 +118,14 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
       final dateStr =
           '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       await _fetchBookingsByDate(dateStr);
+      // determine whether current user already has a booking today
+      if (currentUserId != null) {
+        userHasBookingToday = bookingsForDate.any(
+          (b) => b['user_id'] == currentUserId,
+        );
+      } else {
+        userHasBookingToday = false;
+      }
       _applyBookingsToRooms();
     } catch (e) {
       // ignore — you may want to show a message
@@ -118,11 +139,17 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as List;
       slotDisplayById.clear();
+      slotIdByDisplay.clear();
+      slotStartById.clear();
+      slotEndById.clear();
       for (final item in data) {
         final id = item['slot_id'] as int;
         final start = (item['start_time'] as String).substring(0, 5);
         final end = (item['end_time'] as String).substring(0, 5);
         slotDisplayById[id] = '$start - $end';
+        slotIdByDisplay['$start - $end'] = id;
+        slotStartById[id] = start;
+        slotEndById[id] = end;
       }
     }
   }
@@ -278,6 +305,31 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                     children: room['statuses'].entries.map<Widget>((entry) {
                       final time = entry.key;
                       final status = entry.value;
+                      final slotId = slotIdByDisplay[time];
+                      // compute whether slot already passed (use end time)
+                      bool slotPassed = false;
+                      if (slotId != null && slotEndById[slotId] != null) {
+                        final end = slotEndById[slotId]!;
+                        final parts = end
+                            .split(':')
+                            .map((s) => int.parse(s))
+                            .toList();
+                        final now = DateTime.now();
+                        final slotEndDt = DateTime(
+                          now.year,
+                          now.month,
+                          now.day,
+                          parts[0],
+                          parts[1],
+                        );
+                        slotPassed = now.isAfter(slotEndDt);
+                      }
+
+                      // disable if not available, or slot has passed, or user already has today's booking
+                      final canBook =
+                          status == 'available' &&
+                          !slotPassed &&
+                          !userHasBookingToday;
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -322,17 +374,18 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: ElevatedButton(
-                                  onPressed: status == 'available'
+                                  onPressed: canBook
                                       ? () async {
                                           Navigator.pop(context);
                                           await _showConfirmDialog(
                                             room: room,
                                             slot: time,
+                                            slotId: slotId!,
                                           );
                                         }
                                       : null,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: status == 'available'
+                                    backgroundColor: canBook
                                         ? const Color(0xFF003366)
                                         : Colors.grey,
                                     foregroundColor: Colors.white,
@@ -370,6 +423,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   Future<void> _showConfirmDialog({
     required Map<String, dynamic> room,
     required String slot,
+    required int slotId,
   }) async {
     await showDialog(
       context: context,
@@ -449,7 +503,48 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                 ),
                 onPressed: () async {
                   Navigator.of(ctx).pop();
-                  await _showSuccessDialog();
+                  // perform booking POST
+                  final prefs = await SharedPreferences.getInstance();
+                  final uid = prefs.getInt('user_id');
+                  if (uid == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('User not logged in')),
+                    );
+                    return;
+                  }
+                  final today = DateTime.now();
+                  final dateStr =
+                      '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+                  final res = await http.post(
+                    Uri.parse('$baseUrl/api/book'),
+                    headers: {'Content-Type': 'application/json'},
+                    body: jsonEncode({
+                      'user_id': uid,
+                      'room_id': room['room_id'],
+                      'slot_id': slotId,
+                      'booking_date': dateStr,
+                      'Objective': null,
+                    }),
+                  );
+                  if (res.statusCode == 200) {
+                    // refresh bookings and UI
+                    await _fetchBookingsByDate(dateStr);
+                    userHasBookingToday = bookingsForDate.any(
+                      (b) => b['user_id'] == uid,
+                    );
+                    _applyBookingsToRooms();
+                    await _showSuccessDialog();
+                  } else {
+                    final body = res.body.isNotEmpty
+                        ? res.body
+                        : 'Booking failed';
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(body),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
                 },
                 child: const Text('Confirm'),
               ),
@@ -596,8 +691,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const _HeaderText(
-                        title: 'Hi, David',
+                      _HeaderText(
+                        title: 'Hi, $firstName',
                         subtitle: 'Reserve the room',
                       ),
                       IconButton(

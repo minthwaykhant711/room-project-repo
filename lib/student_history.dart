@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
@@ -16,12 +17,15 @@ class StudentHistory extends StatefulWidget {
 class _StudentHistoryState extends State<StudentHistory>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  Timer? _refreshTimer; // add this
   late String username;
 
+  // Use emulator-friendly host. For Android emulator use 10.0.2.2
   final String baseUrl = 'http://127.0.0.1:3000';
 
   @override
   void dispose() {
+    _refreshTimer?.cancel(); // cancel timer
     _tabController.dispose();
     super.dispose();
   }
@@ -37,6 +41,8 @@ class _StudentHistoryState extends State<StudentHistory>
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
 
+    print('ℹ️ StudentHistory: SharedPreferences user_id = $userId');
+
     if (userId == null) {
       print("⚠️ No user_id found in SharedPreferences");
       setState(() {
@@ -45,18 +51,73 @@ class _StudentHistoryState extends State<StudentHistory>
       return;
     }
 
-    final response = await http.get(Uri.parse('$baseUrl/api/bookings/$userId'));
+    final uri = Uri.parse('$baseUrl/api/bookings/$userId');
+    print('➡️ GET $uri');
+    try {
+      final response = await http.get(uri);
+      print('⬅️ status=${response.statusCode} body=${response.body}');
+      // add explicit debug of parsed JSON
+      if (response.statusCode == 200) {
+        try {
+          final parsed = jsonDecode(response.body);
+          print('🔍 parsed bookings json: $parsed');
+        } catch (e) {
+          print('⚠️ parse error: $e');
+        }
+      }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        final normalized = data.map((raw) {
+          final m = Map<String, dynamic>.from(raw as Map);
+          // normalize booking_date to LOCAL yyyy-mm-dd
+          final rawDate = (m['booking_date'] ?? '').toString();
+          String localDateStr = rawDate;
+          try {
+            final dt = DateTime.parse(rawDate).toLocal();
+            localDateStr =
+                '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+          } catch (_) {
+            // fallback to first 10 chars or original
+            if (rawDate.length >= 10) localDateStr = rawDate.substring(0, 10);
+          }
+          m['booking_date'] = localDateStr;
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      setState(() {
-        _bookings = data;
-        _isLoading = false;
-      });
-    } else {
-      print(
-        "⚠️ Failed to load bookings: ${response.statusCode} ${response.body}",
-      );
+          // canonicalize status (map common variants)
+          final rs = (m['booking_status'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          String canonical;
+          if (rs.contains('pend') || rs.contains('wait'))
+            canonical = 'pending';
+          else if (rs.contains('approv') || rs == 'approved')
+            canonical = 'approved';
+          else if (rs.contains('reject'))
+            canonical = 'rejected';
+          else
+            canonical = rs.isNotEmpty ? rs : 'unknown';
+          m['__status_norm'] = canonical;
+
+          return m;
+        }).toList();
+
+        print(
+          '🔎 normalized bookings: ${normalized.map((b) => {'id': b['booking_id'], 'date': b['booking_date'], 'status': b['__status_norm']}).toList()}',
+        );
+        setState(() {
+          _bookings = normalized;
+          _isLoading = false;
+        });
+      } else {
+        print(
+          "⚠️ Failed to load bookings: ${response.statusCode} ${response.body}",
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('⚠️ Exception fetching bookings: $e');
       setState(() {
         _isLoading = false;
       });
@@ -69,6 +130,9 @@ class _StudentHistoryState extends State<StudentHistory>
     _tabController = TabController(length: 2, vsync: this);
     _loadUserData();
     _fetchBookings();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _fetchBookings();
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -81,19 +145,21 @@ class _StudentHistoryState extends State<StudentHistory>
   // ────────────────────────────────────────────────────────────────────────────
   // Card builder (UI matches Figma + rejection reason)
   Widget _buildBookingCard(Map<String, dynamic> b) {
-    final status = b['booking_status'];
+    final statusNorm = (b['__status_norm'] ?? (b['booking_status'] ?? ''))
+        .toString()
+        .trim()
+        .toLowerCase();
     final approver = b['approver_name'];
-    // final isPending = (approver == null);
 
     late final IconData statusIcon;
     late final Color statusColor;
     late final InlineSpan statusSpan;
 
-    if (status == 'Pending') {
+    if (statusNorm == 'pending') {
       statusIcon = Icons.circle_outlined;
       statusColor = Colors.amber;
       statusSpan = const TextSpan(text: 'Pending Approval');
-    } else if (status == 'Approved') {
+    } else if (statusNorm == 'approved') {
       statusIcon = Icons.check_circle;
       statusColor = Colors.green;
       statusSpan = TextSpan(
@@ -105,7 +171,7 @@ class _StudentHistoryState extends State<StudentHistory>
           ),
         ],
       );
-    } else {
+    } else if (statusNorm == 'rejected') {
       statusIcon = Icons.close;
       statusColor = Colors.red;
       statusSpan = TextSpan(
@@ -116,6 +182,12 @@ class _StudentHistoryState extends State<StudentHistory>
             style: const TextStyle(color: Colors.orange),
           ),
         ],
+      );
+    } else {
+      statusIcon = Icons.info_outline;
+      statusColor = Colors.grey;
+      statusSpan = TextSpan(
+        text: (b['booking_status'] ?? 'Unknown').toString(),
       );
     }
 
@@ -167,7 +239,7 @@ class _StudentHistoryState extends State<StudentHistory>
                           children: [statusSpan],
                         ),
                       ),
-                      if (status == 'Rejected' &&
+                      if (statusNorm == 'rejected' &&
                           b['reason'] != null &&
                           b['reason'].toString().isNotEmpty)
                         Padding(
@@ -221,12 +293,40 @@ class _StudentHistoryState extends State<StudentHistory>
       );
     }
 
-    final pending = _bookings
-        .where((b) => b['booking_status'] == 'Pending')
-        .toList();
-    final history = _bookings
-        .where((b) => b['booking_status'] != 'Pending')
-        .toList();
+    final today = DateTime.now();
+    // Use a normalized "date only" value for comparisons
+    final todayStr =
+        '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final todayDateOnly = DateTime(today.year, today.month, today.day);
+
+    final List<dynamic> pending = [];
+    final List<dynamic> history = [];
+
+    for (final b in _bookings) {
+      final status = (b['__status_norm'] ?? (b['booking_status'] ?? ''))
+          .toString()
+          .trim()
+          .toLowerCase();
+      var dateStr = (b['booking_date'] ?? '').toString();
+      if (dateStr.length >= 10)
+        dateStr = dateStr.substring(0, 10); // yyyy-mm-dd
+
+      if (status == 'pending') {
+        // show only pending that are for TODAY
+        if (dateStr == todayStr) {
+          pending.add(b);
+        } else {
+          // old pending -> ignore (auto-disappear)
+          continue;
+        }
+      } else {
+        // approved/rejected/other -> history
+        history.add(b);
+      }
+    }
+
+    // debug
+    print('ℹ️ pending=${pending.length} history=${history.length}');
 
     final headerHeight = MediaQuery.of(context).size.height * 0.24;
 

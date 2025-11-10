@@ -1,4 +1,5 @@
 // ignore_for_file: deprecated_member_use
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -14,14 +15,15 @@ class LecturerDashboard extends StatefulWidget {
   State<LecturerDashboard> createState() => _LecturerDashboardState();
 }
 
-class _LecturerDashboardState extends State<LecturerDashboard> {
+class _LecturerDashboardState extends State<LecturerDashboard>
+    with WidgetsBindingObserver {
   // ===== Brand Colors (same as staff pages) =====
   static const kNavy = Color(0xFF003366);
   static const kGreen = Color(0xFF1FA22A);
   static const kRed = Color(0xFFDA351C);
   static const kGreyBg = Color(0xFFD9D9D9);
 
-  String username = 'Aj.Surapong';
+  String username = '';
 
   // backend base (match your app.js)
   static const String kBaseUrl = 'http://localhost:3000';
@@ -36,6 +38,11 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
 
   bool _loading = false; // show spinner while fetching
   String? _error; // optional: store last fetch error
+  // Poll timer to refresh summary periodically while the screen is visible
+  Timer? _pollTimer;
+  // prevent overlapping requests
+  bool _isFetching = false;
+  StreamSubscription<String>? _eventsSub;
 
   // ===== Build Status Card =====
   Widget _buildStatusCard(Map<String, dynamic> item) {
@@ -74,7 +81,17 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
     );
   }
 
+  int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
   Future<void> _fetchStatusSummary() async {
+    if (_isFetching) return; // avoid overlapping
+    _isFetching = true;
     setState(() => _loading = true);
     try {
       final today = DateTime.now().toIso8601String().substring(
@@ -82,31 +99,101 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
         10,
       ); // YYYY-MM-DD
       final uri = Uri.parse('$kBaseUrl/api/rooms/status-summary?date=$today');
-      // your endpoint in backend used req to compute today's date itself, so date param optional
       final resp = await http
           .get(uri, headers: _authHeaders())
           .timeout(const Duration(seconds: 8));
 
       if (resp.statusCode != 200) {
-        // record error for the UI (optional)
-        setState(() => _error = 'Server ${resp.statusCode}: ${resp.body}');
+        // ignore: avoid_print
+        print(
+          'fetchStatusSummary: non-200 ${resp.statusCode} body=${resp.body}',
+        );
+        setState(() => _error = 'Server ${resp.statusCode}');
         return;
       }
 
-      final Map<String, dynamic> data =
-          jsonDecode(resp.body) as Map<String, dynamic>;
-      if (data['ok'] != true) {
-        setState(() => _error = 'Invalid response');
+      final dynamic data = jsonDecode(resp.body);
+
+      int available = 0, pending = 0, reserved = 0, disabled = 0;
+
+      // Case A: { ok: true, summary: { available: x, ... } }
+      if (data is Map && data['summary'] is Map) {
+        final Map summary = data['summary'] as Map;
+        available = _toInt(
+          summary['available'] ??
+              summary['available_count'] ??
+              summary['avail'],
+        );
+        pending = _toInt(
+          summary['pending'] ?? summary['pending_count'] ?? summary['pend'],
+        );
+        reserved = _toInt(
+          summary['reserved'] ?? summary['reserved_count'] ?? summary['resv'],
+        );
+        disabled = _toInt(
+          summary['disabled'] ??
+              summary['disabled_count'] ??
+              summary['disabled_rooms'],
+        );
+
+        // Case B: flat map with counts at root
+      } else if (data is Map &&
+          (data['available'] != null || data['pending'] != null)) {
+        available = _toInt(data['available']);
+        pending = _toInt(data['pending']);
+        reserved = _toInt(data['reserved']);
+        disabled = _toInt(data['disabled']);
+
+        // Case C: list of { status/name, count }
+      } else if (data is List) {
+        for (final e in data) {
+          if (e is Map) {
+            final label = (e['status'] ?? e['name'] ?? '')
+                .toString()
+                .toLowerCase();
+            final cnt = _toInt(e['count'] ?? e['value']);
+            if (label.contains('avail'))
+              available += cnt;
+            else if (label.contains('pend'))
+              pending += cnt;
+            else if (label.contains('res'))
+              reserved += cnt;
+            else if (label.contains('dis'))
+              disabled += cnt;
+          }
+        }
+
+        // Case D: rooms array -> compute counts via status
+      } else if (data is Map && data['rooms'] is List) {
+        final List rooms = data['rooms'] as List;
+        for (final r in rooms) {
+          try {
+            final Map m = Map<String, dynamic>.from(r as Map);
+            final st =
+                m['status'] ??
+                m['state'] ??
+                m['booking_status'] ??
+                m['room_status'];
+            final ps = st == null ? 0 : _toInt(st);
+            if (ps == 0)
+              pending += 1;
+            else if (ps == 1)
+              reserved += 1;
+            else if (ps == -1)
+              disabled += 1;
+            else
+              available += 1;
+          } catch (_) {
+            available += 1;
+          }
+        }
+      } else {
+        // Unknown shape: log and surface error to UI
+        // ignore: avoid_print
+        print('fetchStatusSummary: unexpected body shape: ${resp.body}');
+        setState(() => _error = 'Unexpected response');
         return;
       }
-
-      final Map<String, dynamic> summary =
-          (data['summary'] ?? {}) as Map<String, dynamic>;
-      // summary expected shape: { available: 3, pending: 1, reserved: 2, disabled: 0 }
-      final int available = (summary['available'] ?? 0) as int;
-      final int pending = (summary['pending'] ?? 0) as int;
-      final int reserved = (summary['reserved'] ?? 0) as int;
-      final int disabled = (summary['disabled'] ?? 0) as int;
 
       setState(() {
         _statusCards = [
@@ -123,6 +210,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
       print('fetchStatusSummary error: $e\n$st');
       setState(() => _error = 'Network error');
     } finally {
+      _isFetching = false;
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -138,6 +226,34 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
       };
     }
     return {'Content-Type': 'application/json'};
+  }
+
+  // Load current user profile to show correct name in header and set token id
+  Future<void> _fetchMe() async {
+    try {
+      final resp = await http
+          .get(Uri.parse('$kBaseUrl/me'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is Map && data['ok'] == true && data['user'] is Map) {
+          final u = data['user'] as Map;
+          final fn = (u['first_name'] ?? u['firstName'] ?? '')
+              .toString()
+              .trim();
+          final ln = (u['last_name'] ?? u['lastName'] ?? '').toString().trim();
+          final display = (fn.isNotEmpty && ln.isNotEmpty)
+              ? '$fn $ln'
+              : (fn.isNotEmpty ? fn : (ln.isNotEmpty ? ln : ''));
+          if (mounted) setState(() => username = display);
+          if (u['id'] != null) {
+            StudentBrowsing.setMobileToken(u['id'].toString());
+          }
+        }
+      }
+    } catch (_) {
+      // non-fatal: keep default username if network fails
+    }
   }
 
   // ===== Main Build =====
@@ -266,7 +382,9 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                   ),
                                 ),
                                 TextSpan(
-                                  text: ', $username',
+                                  text: username.isNotEmpty
+                                      ? ', $username'
+                                      : '',
                                   style: const TextStyle(
                                     fontSize: 30,
                                     color: Colors.white,
@@ -356,6 +474,35 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _fetchMe();
     _fetchStatusSummary();
+    // Note: App-wide event bus is optional. If present, it can be used to
+    // refresh immediately after booking actions. Currently not subscribing
+    // here to avoid a missing dependency.
+    // start a periodic poll every 6 seconds (adjust as needed)
+    _pollTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
+      if (!mounted) return;
+      // only poll when screen is visible
+      if (ModalRoute.of(context)?.isCurrent == true) {
+        await _fetchStatusSummary();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // refresh when app returns to foreground
+    if (state == AppLifecycleState.resumed) {
+      _fetchStatusSummary();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _eventsSub?.cancel();
+    _pollTimer?.cancel();
+    super.dispose();
   }
 }

@@ -45,8 +45,8 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 
   Future<void> _bootstrap() async {
-    await _fetchMe();        // "Hi, <first_name>"
-    await _fetchBookings();  // fill _pending and _history
+    await _fetchMe(); // "Hi, <first_name>"
+    await _fetchBookings(); // fill _pending and _history
   }
 
   Future<void> _fetchMe() async {
@@ -79,7 +79,20 @@ class _StudentHistoryState extends State<StudentHistory> {
     try {
       final d = DateTime.parse(ymd);
       const w = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const m = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       final wd = w[(d.weekday + 6) % 7];
       final mo = m[d.month - 1];
       return '$wd, $mo ${d.day}';
@@ -119,19 +132,20 @@ class _StudentHistoryState extends State<StudentHistory> {
       final List<Map<String, dynamic>> history = [];
 
       for (final b in rows) {
-        final status = (b['booking_status'] ?? '').toString(); // Waiting|Approved|Rejected
+        final status = (b['booking_status'] ?? '')
+            .toString(); // Waiting|Approved|Rejected
         final roomName = (b['room_name'] ?? 'Room').toString();
         final dateYMD = (b['booking_date'] ?? '').toString();
         final start = (b['start_time'] ?? '').toString();
-        final end   = (b['end_time'] ?? '').toString();
+        final end = (b['end_time'] ?? '').toString();
         final approver = (b['approver_name'] ?? '').toString(); // optional
-        final reason = (b['reject_reason'] ?? '').toString();   // optional
+        final reason = (b['reject_reason'] ?? '').toString(); // optional
 
         final map = {
           'room': roomName,
           'date': _formatYMD(dateYMD),
           'time':
-              '${start.isNotEmpty ? start.substring(0,5) : ''} - ${end.isNotEmpty ? end.substring(0,5) : ''}',
+              '${start.isNotEmpty ? start.substring(0, 5) : ''} - ${end.isNotEmpty ? end.substring(0, 5) : ''}',
           'status': status,
           'approver': approver,
           'reason': reason,
@@ -176,32 +190,48 @@ class _StudentHistoryState extends State<StudentHistory> {
 
     if (status == 'Waiting') {
       statusIcon = Icons.circle_outlined;
-      statusColor = Colors.amber;
+      statusColor = Colors.orange; // pending -> orange
       statusSpan = const TextSpan(text: 'Pending Approval');
     } else if (status == 'Approved') {
       statusIcon = Icons.check;
-      statusColor = const Color(0xFF1FA22A);
+      statusColor = const Color(0xFF1FA22A); // approved -> green
       statusSpan = approver.isNotEmpty
-          ? TextSpan(children: [
-              const TextSpan(text: 'Approved by '),
-              TextSpan(text: approver, style: const TextStyle(color: Colors.orange)),
-            ])
+          ? TextSpan(
+              children: [
+                const TextSpan(text: 'Approved by '),
+                TextSpan(
+                  text: approver,
+                  style: const TextStyle(color: Colors.orange),
+                ),
+              ],
+            )
           : const TextSpan(text: 'Approved');
     } else {
       statusIcon = Icons.close;
-      statusColor = Colors.red;
+      statusColor = Colors.red; // rejected -> red
       statusSpan = approver.isNotEmpty
-          ? TextSpan(children: [
-              const TextSpan(text: 'Rejected by '),
-              TextSpan(text: approver, style: const TextStyle(color: Colors.orange)),
-            ])
+          ? TextSpan(
+              children: [
+                const TextSpan(text: 'Rejected by '),
+                TextSpan(
+                  text: approver,
+                  style: const TextStyle(color: Colors.orange),
+                ),
+              ],
+            )
           : const TextSpan(text: 'Rejected');
     }
+
+    // Use same color for a visible card border to make status distinct
+    final Color borderColor = statusColor;
 
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: borderColor, width: 2),
+      ),
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -214,7 +244,10 @@ class _StudentHistoryState extends State<StudentHistory> {
                 style: const TextStyle(fontSize: 16, color: Colors.black),
                 children: [
                   const TextSpan(text: 'Session in '),
-                  TextSpan(text: b['room'], style: const TextStyle(color: Colors.orange)),
+                  TextSpan(
+                    text: b['room'],
+                    style: const TextStyle(color: Colors.orange),
+                  ),
                 ],
               ),
             ),
@@ -263,12 +296,20 @@ class _StudentHistoryState extends State<StudentHistory> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, size: 18, color: Colors.redAccent),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: Colors.redAccent,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Reason: $reason',
-                      style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.3),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                        height: 1.3,
+                      ),
                     ),
                   ),
                 ],
@@ -281,17 +322,23 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 
   Widget _buildEmptyState(String title) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text('$title is empty', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
-            const SizedBox(height: 8),
-            Text('No ${title.toLowerCase()} bookings found', style: TextStyle(color: Colors.grey[500])),
-          ],
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+        const SizedBox(height: 16),
+        Text(
+          '$title is empty',
+          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
         ),
-      );
+        const SizedBox(height: 8),
+        Text(
+          'No ${title.toLowerCase()} bookings found',
+          style: TextStyle(color: Colors.grey[500]),
+        ),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -312,7 +359,13 @@ class _StudentHistoryState extends State<StudentHistory> {
             decoration: BoxDecoration(
               color: Colors.black87,
               borderRadius: BorderRadius.circular(28),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -322,7 +375,11 @@ class _StudentHistoryState extends State<StudentHistory> {
                   onPressed: () => Navigator.maybePop(context),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                  icon: const Icon(
+                    Icons.home_filled,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StudentBrowsing()),
@@ -334,11 +391,18 @@ class _StudentHistoryState extends State<StudentHistory> {
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('You are already on the Booking page'),
+                        content: const Text(
+                          'You are already on the Booking page',
+                        ),
                         duration: const Duration(milliseconds: 1200),
                         behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     );
                   },
@@ -359,7 +423,9 @@ class _StudentHistoryState extends State<StudentHistory> {
                   bottomLeft: Radius.circular(30),
                   bottomRight: Radius.circular(30),
                 ),
-                border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
+                border: Border(
+                  bottom: BorderSide(color: Colors.black, width: 2),
+                ),
               ),
               width: double.infinity,
               height: headerHeight,
@@ -388,7 +454,9 @@ class _StudentHistoryState extends State<StudentHistory> {
                                     ),
                                   ),
                                   TextSpan(
-                                    text: _firstName.isNotEmpty ? ', $_firstName' : ',',
+                                    text: _firstName.isNotEmpty
+                                        ? ', $_firstName'
+                                        : ',',
                                     style: const TextStyle(
                                       fontSize: 28,
                                       color: Colors.white,
@@ -399,13 +467,20 @@ class _StudentHistoryState extends State<StudentHistory> {
                             ),
                             const Text(
                               'Your Bookings',
-                              style: TextStyle(fontSize: 25, color: Colors.white),
+                              style: TextStyle(
+                                fontSize: 25,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ),
                         IconButton(
                           onPressed: () => showLogoutDialog(context),
-                          icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
+                          icon: const Icon(
+                            Icons.logout_rounded,
+                            color: Colors.white,
+                            size: 40,
+                          ),
                         ),
                       ],
                     ),
@@ -441,21 +516,29 @@ class _StudentHistoryState extends State<StudentHistory> {
                   _loading
                       ? const Center(child: CircularProgressIndicator())
                       : (_pending.isEmpty
-                          ? _buildEmptyState('Pending')
-                          : ListView.builder(
-                              padding: const EdgeInsets.only(top: 10, bottom: 100),
-                              itemCount: _pending.length,
-                              itemBuilder: (_, i) => _buildBookingCard(_pending[i]),
-                            )),
+                            ? _buildEmptyState('Pending')
+                            : ListView.builder(
+                                padding: const EdgeInsets.only(
+                                  top: 10,
+                                  bottom: 100,
+                                ),
+                                itemCount: _pending.length,
+                                itemBuilder: (_, i) =>
+                                    _buildBookingCard(_pending[i]),
+                              )),
                   _loading
                       ? const Center(child: CircularProgressIndicator())
                       : (_history.isEmpty
-                          ? _buildEmptyState('History')
-                          : ListView.builder(
-                              padding: const EdgeInsets.only(top: 10, bottom: 100),
-                              itemCount: _history.length,
-                              itemBuilder: (_, i) => _buildBookingCard(_history[i]),
-                            )),
+                            ? _buildEmptyState('History')
+                            : ListView.builder(
+                                padding: const EdgeInsets.only(
+                                  top: 10,
+                                  bottom: 100,
+                                ),
+                                itemCount: _history.length,
+                                itemBuilder: (_, i) =>
+                                    _buildBookingCard(_history[i]),
+                              )),
                 ],
               ),
             ),

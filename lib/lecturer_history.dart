@@ -261,7 +261,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
 
     if (isPending) {
       statusText = 'Pending Approval';
-      statusColor = Colors.amber;
+      statusColor = Colors.orange; // pending -> orange (match student/staff)
       statusIcon = Icons.circle_outlined;
     } else if (status == 0) {
       statusText = 'Rejected';
@@ -269,14 +269,22 @@ class _LecturerHistoryState extends State<LecturerHistory>
       statusIcon = Icons.close;
     } else {
       statusText = 'Approved';
-      statusColor = Colors.green;
+      statusColor = const Color(
+        0xFF1FA22A,
+      ); // approved -> green (match student view)
       statusIcon = Icons.check;
     }
+
+    // use statusColor for a visible card border to make status distinct
+    final Color borderColor = statusColor;
 
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: borderColor, width: 2),
+      ),
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.all(18),

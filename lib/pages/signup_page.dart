@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'signin_page.dart';
-
-// 🔌 add these imports & base URL for wiring (iOS simulator uses localhost)
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 const String _baseUrl = 'http://localhost:3000';
 
 class SignUpPage extends StatefulWidget {
@@ -22,6 +20,9 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _passController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
+  // secure storage for JWT
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -32,9 +33,8 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  // 🔌 wired: calls your Node API (Argon2, no /api prefix), preserves your original UX:
-  // - validates fields
-  // - on success: shows success SnackBar and navigates to SignInPage
+  // 🔌 calls your Node API; preserves your original UX.
+  // If backend returns { token }, we store it securely.
   void _attemptSignUp() async {
     final email = _emailController.text.trim();
     final first = _firstNameController.text.trim();
@@ -71,9 +71,21 @@ class _SignUpPageState extends State<SignUpPage> {
               'last_name': last, // backend defaults role to 'student'
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 12));
 
-      if (resp.statusCode == 201) {
+      if (resp.statusCode == 201 || resp.statusCode == 200) {
+        // Try to parse JSON to capture token if provided
+        try {
+          final Map<String, dynamic> data = jsonDecode(resp.body);
+          final token = (data['token'] ?? '').toString();
+          if (token.isNotEmpty) {
+            // save JWT securely for immediate authenticated use
+            await _secure.write(key: 'jwt', value: token);
+          }
+        } catch (_) {
+          // response might be plain text; ignore parsing errors
+        }
+
         // keep your original flow: success -> show message -> go to SignIn
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registered successfully')),
@@ -85,8 +97,20 @@ class _SignUpPageState extends State<SignUpPage> {
           );
         });
       } else {
-        // backend sends plain text or JSON error; show whatever it sent
-        final msg = resp.body.isNotEmpty ? resp.body : 'Register failed';
+        // backend can send JSON {error} or plain text; show whatever it sent
+        String msg = 'Register failed';
+        if (resp.body.isNotEmpty) {
+          try {
+            final m = jsonDecode(resp.body);
+            if (m is Map && m['error'] != null) {
+              msg = m['error'].toString();
+            } else {
+              msg = resp.body;
+            }
+          } catch (_) {
+            msg = resp.body;
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } on TimeoutException {

@@ -1,89 +1,39 @@
-// lib/pages/student_browsing.dart
 import 'dart:ui';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/student_history.dart';
 
 class StudentBrowsing extends StatefulWidget {
   const StudentBrowsing({super.key});
-    static String? mobileTokenUserId;
-  static void setMobileToken(String userId) => mobileTokenUserId = userId;
+
   @override
   State<StudentBrowsing> createState() => _StudentBrowsingState();
+
+  // (optional) back-compat for older callers; not used with JWT now
+  static String? mobileTokenUserId;
+  static void setMobileToken(String id) { mobileTokenUserId = id; }
 }
 
 class _StudentBrowsingState extends State<StudentBrowsing> {
-  // ────────────────────────────────────────────────────────────────────────────
-  // CONFIG (backend base URL)
   static const String _baseUrl = 'http://localhost:3000';
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
-  // If you set this from SignIn, it will be sent as Authorization: Bearer <userId>
-  static String? _mobileTokenUserId;
-  static void setMobileToken(String userId) {
-    _mobileTokenUserId = userId;
-  }
-
-  Map<String, String> _authHeaders() {
-  final id = StudentBrowsing.mobileTokenUserId;
-  if (id != null && id.isNotEmpty) {
-    return {
-      'Authorization': 'Bearer $id',
-      'Content-Type': 'application/json',
-    };
-  }
-  return {'Content-Type': 'application/json'};
-}
-
-
-  // user greeting
+  String? _jwt;
   String _firstName = '';
-
-  // selected date (today only in this screen)
   late final String _todayYMD;
 
-  // Date formatter: FRI, OCT 24, 2025
-  String _formatHeaderDate(DateTime d) {
-    const w = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
-    const m = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-    final weekday = w[(d.weekday + 6) % 7];
-    final month = m[d.month - 1];
-    return '$weekday, $month ${d.day}, ${d.year}';
-  }
-
-  // Status → color (UI helper)
-  Color getStatusColor(String status) {
-    switch (status) {
-      case 'available': return Colors.teal;
-      case 'pending':   return Colors.orange;
-      case 'reserved':  return const Color.fromARGB(255, 12, 143, 209);
-      case 'disabled':  return Colors.red;   // room offline
-      case 'passed':    return Colors.grey;  // time already started (today)
-      default:          return Colors.grey;
-    }
-  }
-
-  Color _chipBg(String status) => getStatusColor(status).withOpacity(0.12);
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Category chips (UI unchanged)
   final List<String> categories = ['Study', 'Multimedia', 'Meeting'];
   String selectedCategory = 'Multimedia';
-
-  // time slot labels (from backend availability response)
   List<String> timeSlots = [];
-
-  // Rooms grouped by category for your horizontal cards
-  // Each room map now carries a boolean 'disabled' for the whole-room state.
   Map<String, List<Map<String, dynamic>>> roomsByCategory = {
     'Study': [],
     'Multimedia': [],
     'Meeting': [],
   };
-
   bool _loading = false;
 
   @override
@@ -96,11 +46,37 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   }
 
   Future<void> _bootstrap() async {
-    await _fetchMe();          // "Hi, <first_name>"
-    await _fetchAvailability(); // statuses incl. 'pending', 'reserved', 'passed', 'disabled'
+    _jwt = await _secure.read(key: 'jwt');
+    await _fetchMe();
+    await _fetchAvailability();
   }
 
-  // Infer category from room name (no DB change)
+  Map<String, String> _authHeaders() {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (_jwt != null && _jwt!.isNotEmpty) headers['Authorization'] = 'Bearer $_jwt';
+    return headers;
+  }
+
+  String _formatHeaderDate(DateTime d) {
+    const w = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+    const m = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    final weekday = w[(d.weekday + 6) % 7];
+    final month = m[d.month - 1];
+    return '$weekday, $month ${d.day}, ${d.year}';
+  }
+
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'available': return Colors.teal;
+      case 'pending':   return Colors.orange;
+      case 'reserved':  return const Color.fromARGB(255, 12, 143, 209);
+      case 'disabled':  return Colors.red;   // room offline only
+      case 'passed':    return Colors.grey;  // past slots
+      default:          return Colors.grey;
+    }
+  }
+  Color _chipBg(String status) => getStatusColor(status).withOpacity(0.12);
+
   String _guessCategory(String name) {
     final n = name.toLowerCase();
     if (n.contains('multi')) return 'Multimedia';
@@ -119,26 +95,22 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
           final u = data['user'] as Map;
           final fn = (u['first_name'] ?? '').toString().trim();
           if (fn.isNotEmpty && mounted) setState(() => _firstName = fn);
-          if (u['id'] != null && _mobileTokenUserId == null) {
-            _mobileTokenUserId = u['id'].toString();
-          }
         }
-      } else if (resp.statusCode == 401) {
-        if (mounted) setState(() => _firstName = '');
       }
-    } catch (_) {/* greeting is non-fatal */}
+    } catch (_) {}
   }
 
-  // Load availability for today (GET /rooms/availability?date=YYYY-MM-DD)
   Future<void> _fetchAvailability() async {
     setState(() => _loading = true);
     try {
       final url = Uri.parse('$_baseUrl/rooms/availability?date=$_todayYMD');
-      final resp = await http.get(url, headers: _authHeaders()).timeout(const Duration(seconds: 12));
+      final resp = await http
+          .get(url, headers: _authHeaders())
+          .timeout(const Duration(seconds: 12));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         if (data['ok'] == true && data['rooms'] is List) {
-          // slots labels from server
+          // collect slot labels
           if (data['slots'] is List) {
             final List list = data['slots'];
             final labels = <String>[];
@@ -161,13 +133,11 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             final name = (r['name'] ?? '').toString();
             final desc = (r['description'] ?? '').toString();
             final imageUrl = (r['image_url'] ?? '').toString();
-            final roomDisabled = r['disabled'] == true;
 
             Map<String, dynamic> rawStatuses = {};
             if (r['statuses'] is Map<String, dynamic>) {
               rawStatuses = (r['statuses'] as Map<String, dynamic>);
             }
-
             final Map<String, String> statuses = {
               for (final slot in timeSlots) slot: (rawStatuses[slot]?.toString() ?? 'available')
             };
@@ -177,10 +147,31 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               'id': r['id'],
               'name': name,
               'details': desc.isNotEmpty ? desc : 'Room',
-              'max': 6, // keep UI text
+              'max': 6,
               'statuses': statuses,
-              'disabled': roomDisabled, // <-- carry to UI
               'image': imageUrl.isNotEmpty ? imageUrl : 'assets/images/study room A.jpg',
+              // backend should include room_status; default to 1 (enabled)
+              'room_status': (r['room_status'] ?? 1),
+            });
+          }
+
+          // ── sort: available first, then fully booked, and disabled last
+          int priority(Map<String, dynamic> room) {
+            final statuses = Map<String, String>.from(room['statuses'] as Map);
+            final isFullyBooked = !statuses.values.any((v) => v == 'available');
+            final isDisabled = (room['room_status'] ?? 1) == 0;
+            if (isDisabled) return 2;          // disabled → last
+            if (isFullyBooked) return 1;       // fully booked → after available
+            return 0;                           // available → first
+          }
+
+          for (final cat in grouped.keys) {
+            grouped[cat]!.sort((a, b) {
+              final pa = priority(a);
+              final pb = priority(b);
+              if (pa != pb) return pa.compareTo(pb);
+              // tie-breaker by name to keep stable
+              return (a['name'] as String).compareTo(b['name'] as String);
             });
           }
 
@@ -200,14 +191,12 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     }
   }
 
-  // Create a booking
   Future<bool> _createBooking({
     required int roomId,
     required String slotLabel,
     required String objective,
   }) async {
     try {
-      // map slotLabel ("HH:MM - HH:MM") → slot_id using /time-slots
       final start = slotLabel.split(' - ').first;
       final ts = await http
           .get(Uri.parse('$_baseUrl/time-slots'), headers: _authHeaders())
@@ -269,10 +258,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Dialogs (UI visuals unchanged)
-
-  // Details → chips for all time slots
   Future<void> _showSlotsDialog(Map<String, dynamic> room) async {
     await showDialog(
       context: context,
@@ -287,15 +272,10 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  room['name'],
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-                ),
+                Text(room['name'], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
                 const SizedBox(height: 6),
-                Text(
-                  "${room['details']}  •  Max: ${room['max']} people",
-                  style: const TextStyle(color: Colors.black54, fontSize: 13.5, height: 1.2),
-                ),
+                Text("${room['details']}  •  Max: ${room['max']} people",
+                    style: const TextStyle(color: Colors.black54, fontSize: 13.5, height: 1.2)),
                 const SizedBox(height: 10),
                 const Divider(height: 1),
               ],
@@ -305,7 +285,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               runSpacing: 10,
               children: timeSlots.map((slot) {
                 final status = (room['statuses'][slot] as String?) ?? 'available';
-                final enabled = status == 'available'; // only available is clickable
+                final enabled = status == 'available';
                 final color = getStatusColor(status);
 
                 return InputChip(
@@ -318,14 +298,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
-                        ),
+                        decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                        child: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -337,9 +311,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                           await _showConfirmDialog(room: room, slot: slot);
                         }
                       : null,
-                  shape: const StadiumBorder(
-                    side: BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
+                  shape: const StadiumBorder(side: BorderSide(color: Color(0xFFE0E0E0))),
                 );
               }).toList(),
             ),
@@ -349,7 +321,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     );
   }
 
-  // Confirm dialog with required objective
   Future<void> _showConfirmDialog({
     required Map<String, dynamic> room,
     required String slot,
@@ -366,9 +337,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
             child: AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              title: const Text('Confirm Booking',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: const Text('Confirm Booking', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -379,10 +348,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                         style: const TextStyle(color: Colors.black87, fontSize: 16),
                         children: [
                           const TextSpan(text: 'Session in '),
-                          TextSpan(
-                            text: room['name'],
-                            style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
-                          ),
+                          TextSpan(text: room['name'], style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -408,9 +374,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                         hintText: 'e.g., Group study for CS101 assignment',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onChanged: (v) {
-                        setStateDialog(() => canConfirm = v.trim().isNotEmpty);
-                      },
+                      onChanged: (v) => setStateDialog(() => canConfirm = v.trim().isNotEmpty),
                     ),
                   ],
                 ),
@@ -419,8 +383,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               actions: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.green, foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: canConfirm
@@ -432,7 +395,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                             objective: controller.text.trim(),
                           );
                           if (ok) {
-                            // quick local feedback: mark slot pending
                             setState(() {
                               final cat = _guessCategory((room['name'] as String));
                               final list = roomsByCategory[cat]!;
@@ -444,7 +406,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                               }
                             });
                             await _showSuccessDialog();
-                            // sync with DB
                             await _fetchAvailability();
                           }
                         }
@@ -453,8 +414,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.red, foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () => Navigator.of(ctx).pop(),
@@ -468,7 +428,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     );
   }
 
-  // Success dialog
   Future<void> _showSuccessDialog() async {
     showDialog(
       context: context,
@@ -495,7 +454,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     if (mounted) Navigator.of(context, rootNavigator: true).pop();
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final headerHeight = MediaQuery.of(context).size.height * 0.28;
@@ -503,8 +461,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
-
-      // Bottom nav
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -518,10 +474,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                onPressed: () => Navigator.maybePop(context),
-              ),
+              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
               IconButton(
                 icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
                 onPressed: () {
@@ -539,28 +492,21 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               ),
               IconButton(
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentHistory()));
-                },
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentHistory())),
               ),
             ],
           ),
         ),
       ),
-
-      // Body
       body: Column(
         children: [
-          // Header (greeting uses _firstName)
+          // Header (unchanged visuals)
           Container(
             width: double.infinity,
             height: headerHeight,
             decoration: const BoxDecoration(
               color: Color(0xFF003366),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             child: Column(
@@ -572,14 +518,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _HeaderText(
-                        title: _firstName.isNotEmpty ? 'Hi, $_firstName' : 'Hi,',
-                        subtitle: 'Reserve the room',
-                      ),
-                      IconButton(
-                        onPressed: () => showLogoutDialog(context),
-                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
-                      ),
+                      _HeaderText(title: _firstName.isNotEmpty ? 'Hi, $_firstName' : 'Hi,', subtitle: 'Reserve the room'),
+                      IconButton(onPressed: () => showLogoutDialog(context), icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40)),
                     ],
                   ),
                 ),
@@ -588,22 +528,13 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
-                    ),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))]),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 30, height: 30,
-                          decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
-                          child: const Icon(Icons.calendar_month, color: Colors.white, size: 24),
-                        ),
+                        Container(width: 30, height: 30, decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle), child: const Icon(Icons.calendar_month, color: Colors.white, size: 24)),
                         const SizedBox(width: 12),
-                        Text(_formatHeaderDate(DateTime.now()),
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black87)),
+                        Text(_formatHeaderDate(DateTime.now()), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black87)),
                       ],
                     ),
                   ),
@@ -614,7 +545,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
           const SizedBox(height: 10),
 
-          // Category chips (UNCHANGED)
+          // Category chips (unchanged)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(
@@ -631,11 +562,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       backgroundColor: Colors.white,
                       selectedColor: const Color(0xFF184D83),
                       shape: const StadiumBorder(side: BorderSide(color: Color(0xFFBDBDBD), width: 1)),
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontSize: 14, fontWeight: FontWeight.w500),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       onSelected: (_) => setState(() => selectedCategory = cat),
@@ -648,7 +575,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
           const SizedBox(height: 5),
 
-          // Cards (UNCHANGED layout; overlay message adjusted)
+          // Cards (unchanged layout)
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -663,19 +590,10 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       final double imgH = cardH * 0.70;
 
                       final room = rooms[index];
-                      final Map<String, String> statuses =
-                          Map<String, String>.from(room['statuses'] as Map);
-                      final bool roomDisabled = room['disabled'] == true;
+                      final Map<String, String> statuses = Map<String, String>.from(room['statuses'] as Map);
 
-                      // "fully booked today": every slot is NOT available (but not disabled)
-                      final bool isFullyBookedToday = !roomDisabled &&
-                          !statuses.values.any((v) => v == 'available');
-
-                      final String overlayText = roomDisabled
-                          ? 'This room is disabled'
-                          : (isFullyBookedToday
-                              ? 'This room is fully booked for today'
-                              : '');
+                      final bool isFullyBookedToday = !statuses.values.any((v) => v == 'available');
+                      final bool isDisabled = (room['room_status'] ?? 1) == 0;
 
                       final String img = (room['image'] ?? '').toString();
                       final bool isNetwork = img.startsWith('http://') || img.startsWith('https://');
@@ -774,8 +692,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                               ),
                             ),
 
-                            // Overlay if DISABLED or FULLY BOOKED (same visuals; different text)
-                            if (overlayText.isNotEmpty) ...[
+                            // Overlay if fully booked or disabled (dim + banner)
+                            if (isDisabled || isFullyBookedToday) ...[
                               Positioned.fill(
                                 child: Container(color: Colors.white.withOpacity(0.60)),
                               ),
@@ -791,7 +709,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      overlayText,
+                                      isDisabled
+                                          ? 'This room is disabled'
+                                          : 'This room is fully booked for today',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w700,
@@ -814,7 +734,6 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   }
 }
 
-// Reusable header text (UNCHANGED)
 class _HeaderText extends StatelessWidget {
   const _HeaderText({required this.title, required this.subtitle});
   final String title;
@@ -825,10 +744,8 @@ class _HeaderText extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-        Text(subtitle,
-            style: const TextStyle(color: Colors.white, fontSize: 22)),
+        Text(title, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+        Text(subtitle, style: const TextStyle(color: Colors.white, fontSize: 22)),
       ],
     );
   }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_application_1/lecturer_dashboard.dart';
 import 'package:flutter_application_1/staff_dashboard.dart';
 import 'package:flutter_application_1/student_browsing.dart';
@@ -22,6 +22,7 @@ class _SignInPageState extends State<SignInPage> {
   bool _loading = false;
 
   static const String _baseUrl = 'http://localhost:3000';
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -68,19 +69,23 @@ class _SignInPageState extends State<SignInPage> {
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         if (data is Map && data['ok'] == true) {
+          // server returns: { ok, token, user:{ first_name, role, ... } }
+          final token = (data['token'] ?? '').toString();
           final user = (data['user'] ?? {}) as Map;
-          final token = (data['mobile_token'] ?? '').toString();
           final firstName = (user['first_name'] ?? '').toString();
           final role = (user['role'] ?? 'student').toString();
 
-          // set the token so all subsequent pages send header Authorization: Bearer <user_id>
-          if (token.isNotEmpty) {
-            StudentBrowsing.setMobileToken(token); // <-- FIX: public & available
+          if (token.isEmpty) {
+            _snack('Invalid token from server');
+            setState(() => _loading = false);
+            return;
           }
 
-          // persist optionally what you need
+          // SECURE: store JWT
+          await _secure.write(key: 'jwt', value: token);
+
+          // Non-sensitive prefs
           final sp = await SharedPreferences.getInstance();
-          await sp.setString('mobile_token', token);
           await sp.setString('first_name', firstName);
           await sp.setString('role', role);
           await sp.setBool('remember_me', _rememberMe);
@@ -91,14 +96,12 @@ class _SignInPageState extends State<SignInPage> {
           }
 
           // route by role
+          if (!mounted) return;
           if (role == 'staff') {
-            if (!mounted) return;
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => StaffDashboard()));
           } else if (role == 'lecturer') {
-            if (!mounted) return;
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LecturerDashboard()));
           } else {
-            if (!mounted) return;
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const StudentBrowsing()));
           }
           return;
@@ -124,6 +127,7 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
+    // ⬇️ same UI as before
     return Scaffold(
       body: Container(
         width: size.width,
@@ -187,7 +191,7 @@ class _SignInPageState extends State<SignInPage> {
 
               const SizedBox(height: 20),
 
-              // Form Card
+              // Form card
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -208,7 +212,6 @@ class _SignInPageState extends State<SignInPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const SizedBox(height: 40),
-
                         TextField(
                           controller: _user,
                           keyboardType: TextInputType.emailAddress,
@@ -225,7 +228,6 @@ class _SignInPageState extends State<SignInPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
-
                         TextField(
                           controller: _pass,
                           obscureText: true,
@@ -241,62 +243,37 @@ class _SignInPageState extends State<SignInPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 12),
-
                         Row(
                           children: [
                             Checkbox(
                               value: _rememberMe,
-                              onChanged: (value) {
-                                setState(() {
-                                  _rememberMe = value ?? false;
-                                });
-                              },
+                              onChanged: (v) => setState(() => _rememberMe = v ?? false),
                               activeColor: Colors.white,
                               checkColor: const Color(0xFF0E2A5D),
                             ),
-                            const Text(
-                              'Remember me',
-                              style: TextStyle(color: Colors.white, fontSize: 14),
-                            ),
+                            const Text('Remember me', style: TextStyle(color: Colors.white, fontSize: 14)),
                           ],
                         ),
-
                         const SizedBox(height: 40),
-
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: const Color(0xFF0E2A5D),
                             shadowColor: Colors.black,
                             elevation: 10,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                             padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 16),
                           ),
                           onPressed: _loading ? null : _attemptSignIn,
                           child: _loading
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Text(
-                                  'SIGN IN',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                ),
+                              ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('SIGN IN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                         ),
-
                         const SizedBox(height: 40),
-
                         GestureDetector(
                           onTap: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => const SignUpPage()),
-                            );
+                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignUpPage()));
                           },
                           child: const Text.rich(
                             TextSpan(

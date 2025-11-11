@@ -156,92 +156,113 @@ class _StudentHistoryState extends State<StudentHistory> {
 
   // UI card (unchanged)
   Widget _buildBookingCard(Map<String, dynamic> b) {
-    final String status = (b['status'] ?? 'Waiting') as String;
-    final String approver = (b['approver'] ?? '') as String;
-    final String reason = (b['reason'] ?? '') as String;
+  final String status = (b['status'] ?? 'Waiting') as String;
+  final String approver = (b['approver'] ?? '') as String;
+  final String reason = (b['reason'] ?? '') as String;
 
-    late final IconData statusIcon;
-    late final Color statusColor;
-    late final InlineSpan statusSpan;
+  late final IconData statusIcon;
+  late final Color statusColor;
+  late final InlineSpan statusSpan;
 
-    if (status == 'Waiting') {
-      statusIcon = Icons.circle_outlined;
-      statusColor = Colors.amber;
-      statusSpan = const TextSpan(text: 'Pending Approval');
-    } else if (status == 'Approved') {
-      statusIcon = Icons.check;
-      statusColor = const Color(0xFF1FA22A);
-      statusSpan = approver.isNotEmpty
-          ? TextSpan(children: [
-              const TextSpan(text: 'Approved by '),
-              TextSpan(text: approver, style: const TextStyle(color: Colors.orange)),
-            ])
-          : const TextSpan(text: 'Approved');
-    } else {
-      statusIcon = Icons.close;
-      statusColor = Colors.red;
-      statusSpan = approver.isNotEmpty
-          ? TextSpan(children: [
-              const TextSpan(text: 'Rejected by '),
-              TextSpan(text: approver, style: const TextStyle(color: Colors.orange)),
-            ])
-          : const TextSpan(text: 'Rejected');
-    }
+  if (status == 'Waiting') {
+    statusIcon = Icons.circle_outlined;
+    statusColor = Colors.amber;
+    statusSpan = const TextSpan(text: 'Pending Approval');
+  } else if (status == 'Approved') {
+    statusIcon = Icons.check;
+    statusColor = const Color(0xFF1FA22A);
+    statusSpan = approver.isNotEmpty
+        ? TextSpan(children: [
+            const TextSpan(text: 'Approved by '),
+            TextSpan(text: approver, style: const TextStyle(color: Colors.orange)),
+          ])
+        : const TextSpan(text: 'Approved');
+  } else {
+    statusIcon = Icons.close;
+    statusColor = Colors.red;
+    statusSpan = approver.isNotEmpty
+        ? TextSpan(children: [
+            const TextSpan(text: 'Rejected by '),
+            TextSpan(text: approver, style: const TextStyle(color: Colors.orange)),
+          ])
+        : const TextSpan(text: 'Rejected');
+  }
 
-    return Card(
-      color: Colors.white,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 16, color: Colors.black),
-                children: [
-                  const TextSpan(text: 'Session in '),
-                  TextSpan(text: b['room'], style: const TextStyle(color: Colors.orange)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(children: [const Icon(Icons.calendar_month_outlined, size: 20), const SizedBox(width: 6), Text(b['date'], style: const TextStyle(fontSize: 14))]),
-            const SizedBox(height: 6),
-            Row(children: [const Icon(Icons.access_time, size: 18), const SizedBox(width: 6), Text(b['time'], style: const TextStyle(fontSize: 14))]),
-            const SizedBox(height: 10),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+  return Card(
+    color: Colors.white,
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+      side: BorderSide(color: statusColor, width: 2.2), // ✅ Highlight border
+    ),
+    elevation: 0, // we rely on the colored outline instead of shadow
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 16, color: Colors.black),
               children: [
-                Icon(statusIcon, color: statusColor, size: 20),
+                const TextSpan(text: 'Session in '),
+                TextSpan(text: b['room'], style: const TextStyle(color: Colors.orange)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            const Icon(Icons.calendar_month_outlined, size: 20),
+            const SizedBox(width: 6),
+            Text(b['date'], style: const TextStyle(fontSize: 14))
+          ]),
+          const SizedBox(height: 6),
+          Row(children: [
+            const Icon(Icons.access_time, size: 18),
+            const SizedBox(width: 6),
+            Text(b['time'], style: const TextStyle(fontSize: 14))
+          ]),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(statusIcon, color: statusColor, size: 20),
+              const SizedBox(width: 6),
+              Flexible(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 14, color: Colors.black),
+                    children: [statusSpan],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (status == 'Rejected' && reason.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 18, color: Colors.redAccent),
                 const SizedBox(width: 6),
-                Flexible(
-                  child: RichText(
-                    text: TextSpan(style: const TextStyle(fontSize: 14, color: Colors.black), children: [statusSpan]),
+                Expanded(
+                  child: Text(
+                    'Reason: $reason',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      height: 1.3,
+                    ),
                   ),
                 ),
               ],
             ),
-            if (status == 'Rejected' && reason.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.info_outline, size: 18, color: Colors.redAccent),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text('Reason: $reason', style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.3)),
-                  ),
-                ],
-              ),
-            ],
           ],
-        ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState(String title) => Center(
         child: Column(

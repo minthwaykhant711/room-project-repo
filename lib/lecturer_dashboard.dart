@@ -1,8 +1,12 @@
 // ignore_for_file: deprecated_member_use
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/lecturer_browsing.dart';
 import 'package:flutter_application_1/lecturer_history.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LecturerDashboard extends StatefulWidget {
   const LecturerDashboard({super.key});
@@ -18,48 +22,194 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
   static const kRed = Color(0xFFDA351C);
   static const kGreyBg = Color(0xFFD9D9D9);
 
-  String username = 'Aj.Surapong';
+  static const String _baseUrl = 'http://localhost:3000';
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
-  final List<Map<String, dynamic>> _statusCards = [
-    {'title': 'Available', 'count': 5, 'titleColor': kGreen},
-    {'title': 'Pending', 'count': 3, 'titleColor': Colors.orange},
-    {'title': 'Reserved', 'count': 4, 'titleColor': Colors.blue},
-    {'title': 'Disabled', 'count': 2, 'titleColor': kRed},
-  ];
+  String username = '';
+  String? _jwt;
+  bool _loading = false;
 
-  // ===== Build Status Card =====
-  Widget _buildStatusCard(Map<String, dynamic> item) {
-    final bool isDisabled = item['title'] == 'Disabled';
-    final Color countColor = isDisabled ? kNavy.withOpacity(0.6) : kNavy;
+  late final String _todayYMD;
 
-    return Card(
-      color: Colors.white,
-      elevation: 6,
-      shadowColor: Colors.black.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
+  // live counts
+  int _countAvailable = 0;
+  int _countPending = 0;
+  int _countReserved = 0;
+  int _countDisabled = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _todayYMD =
+        "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    _jwt = await _secure.read(key: 'jwt');
+    await _fetchMe();
+    await _fetchSummary();
+  }
+
+  Map<String, String> _authHeaders() {
+    final h = <String, String>{'Content-Type': 'application/json'};
+    if (_jwt != null && _jwt!.isNotEmpty) h['Authorization'] = 'Bearer $_jwt';
+    return h;
+  }
+
+  Future<void> _fetchMe() async {
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/me'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is Map && data['ok'] == true && data['user'] is Map) {
+          final u = data['user'] as Map;
+          final fn = (u['first_name'] ?? '').toString().trim();
+          if (mounted && fn.isNotEmpty) setState(() => username = 'Aj.$fn');
+        }
+      }
+    } catch (_) {/* ignore */}
+  }
+
+  Future<void> _fetchSummary() async {
+    setState(() => _loading = true);
+    try {
+      final url = Uri.parse('$_baseUrl/rooms/availability?date=$_todayYMD');
+      final resp = await http
+          .get(url, headers: _authHeaders())
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode != 200) {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load dashboard');
+        _resetCounts();
+        return;
+      }
+
+      final data = jsonDecode(resp.body);
+      if (data is! Map || data['ok'] != true || data['rooms'] is! List) {
+        _snack('Invalid availability response');
+        _resetCounts();
+        return;
+      }
+
+      final List rooms = data['rooms'];
+
+      int available = 0;
+      int pending = 0;
+      int reserved = 0;
+      int disabled = 0;
+
+      for (final r in rooms) {
+        final roomStatus = (r['room_status'] ?? 1);
+        final statuses = (r['statuses'] as Map).cast<String, dynamic>();
+
+        if (roomStatus == 0) {
+          disabled += statuses.length;
+          continue;
+        }
+        for (final v in statuses.values) {
+          final s = (v ?? '').toString();
+          if (s == 'available') available++;
+          else if (s == 'pending') pending++;
+          else if (s == 'reserved') reserved++;
+          // 'passed' not counted
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _countAvailable = available;
+          _countPending = pending;
+          _countReserved = reserved;
+          _countDisabled = disabled;
+        });
+      }
+    } on TimeoutException {
+      _snack('Timeout while loading dashboard');
+      _resetCounts();
+    } catch (e) {
+      _snack('Network error: $e');
+      _resetCounts();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _resetCounts() {
+    if (!mounted) return;
+    setState(() {
+      _countAvailable = 0;
+      _countPending = 0;
+      _countReserved = 0;
+      _countDisabled = 0;
+    });
+  }
+
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  // ===== Highlighted Status Card (like history border color) =====
+  Widget _buildStatusCard({
+    required String title,
+    required int count,
+    required Color color,
+  }) {
+    final hasItems = count > 0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: kNavy, width: 1),
+        boxShadow: hasItems
+            ? [
+                // subtle glow when count > 0
+                BoxShadow(color: color.withOpacity(0.15), blurRadius: 12, spreadRadius: 2),
+              ]
+            : [
+                BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6, offset: const Offset(0, 2)),
+              ],
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            item['title'],
-            style: TextStyle(
-              color: item['titleColor'],
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
+      child: Card(
+        color: Colors.white,
+        elevation: 6,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          // border color matches status color (like the history cards)
+          side: BorderSide(color: color, width: hasItems ? 2 : 1),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(15),
+          // quick refresh if you tap any card
+          onTap: _loading ? null : _fetchSummary,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '$count',
+                style: TextStyle(
+                  color: kNavy,
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          Text(
-            '${item['count']}',
-            style: TextStyle(
-              color: countColor,
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -72,7 +222,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
     return Scaffold(
       backgroundColor: kGreyBg,
 
-      // ===== BOTTOM NAV BAR (standardized) =====
+      // ===== BOTTOM NAV BAR =====
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -82,44 +232,33 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
+              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
             ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Back button
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                 onPressed: () => Navigator.maybePop(context),
               ),
-              // Home button
               IconButton(
-                icon: const Icon(
-                  Icons.home_filled,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () {
+                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                onPressed: () async {
+                  // keep your message AND force a refresh
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('You are already on the Home page'),
                       duration: const Duration(milliseconds: 1200),
                       behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   );
+                  if (!_loading) {
+                    await _fetchSummary(); // refresh the dashboard counts
+                  }
                 },
               ),
               IconButton(
@@ -131,13 +270,8 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                   );
                 },
               ),
-              // Calendar (Booking History)
               IconButton(
-                icon: const Icon(
-                  Icons.calendar_today,
-                  color: Colors.white,
-                  size: 28,
-                ),
+                icon: const Icon(Icons.calendar_today, color: Colors.white, size: 28),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -190,9 +324,9 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                   ),
                                 ),
                                 TextSpan(
-                                  text: ', $username',
+                                  text: ', ${username.isNotEmpty ? username : 'Lecturer'}',
                                   style: const TextStyle(
-                                    fontSize: 30,
+                                    fontSize: 29,fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -208,11 +342,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                       // Logout button
                       IconButton(
                         onPressed: () => showLogoutDialog(context),
-                        icon: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
                       ),
                     ],
                   ),
@@ -229,7 +359,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
             ),
           ),
 
-          SizedBox(height: 35),
+          const SizedBox(height: 35),
 
           // ===== SCROLLABLE BODY CONTENT =====
           Expanded(
@@ -237,7 +367,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Column(
                 children: [
-                  // ===== GRID STATUS CARDS =====
+                  // ===== GRID STATUS CARDS (highlighted borders) =====
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 1, 14, 8),
                     child: GridView.count(
@@ -247,45 +377,32 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 10,
                       childAspectRatio: 1.05,
-                      children: _statusCards.map(_buildStatusCard).toList(),
+                      children: [
+                        _buildStatusCard(
+                          title: 'Available',
+                          count: _countAvailable,
+                          color: kGreen,
+                        ),
+                        _buildStatusCard(
+                          title: 'Pending',
+                          count: _countPending,
+                          color: Colors.orange,
+                        ),
+                        _buildStatusCard(
+                          title: 'Reserved',
+                          count: _countReserved,
+                          color: Colors.blue,
+                        ),
+                        _buildStatusCard(
+                          title: 'Disabled',
+                          count: _countDisabled,
+                          color: kRed,
+                        ),
+                      ],
                     ),
                   ),
 
                   const SizedBox(height: 28),
-
-                  // ===== SINGLE ACTION BUTTON =====
-                  // ElevatedButton.icon(
-                  //   onPressed: () {
-                  //     Navigator.push(
-                  //       context,
-                  //       MaterialPageRoute(
-                  //         builder: (_) => const LecturerBrowsing(),
-                  //       ),
-                  //     );
-                  //   },
-                  //   icon: const Icon(
-                  //     Icons.exit_to_app_rounded,
-                  //     color: Colors.black87,
-                  //     size: 26,
-                  //   ),
-                  //   label: const Text(
-                  //     'Browse Room',
-                  //     style: TextStyle(
-                  //       color: Colors.black87,
-                  //       fontWeight: FontWeight.bold,
-                  //       fontSize: 16,
-                  //     ),
-                  //   ),
-                  //   style: ElevatedButton.styleFrom(
-                  //     backgroundColor: Colors.white,
-                  //     elevation: 2,
-                  //     shape: const StadiumBorder(),
-                  //     padding: const EdgeInsets.symmetric(
-                  //       horizontal: 20,
-                  //       vertical: 15,
-                  //     ),
-                  //   ),
-                  // ),
                   const SizedBox(height: 25),
                 ],
               ),

@@ -1,6 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/lecturer_browsing.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'package:flutter_application_1/logout_function.dart';
+import 'package:flutter_application_1/lecturer_browsing.dart';
 import 'package:flutter_application_1/lecturer_dashboard.dart';
 
 class LecturerHistory extends StatefulWidget {
@@ -12,13 +17,26 @@ class LecturerHistory extends StatefulWidget {
 
 class _LecturerHistoryState extends State<LecturerHistory>
     with SingleTickerProviderStateMixin {
+  // ─────────────────────────────────────────────────────────────
+  static const String _baseUrl = 'http://localhost:3000';
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
   late TabController _tabController;
-  final String username = 'Aj.Surapong';
+
+  // Greeting / name at header (keep your default)
+  String username = 'Aj.Surapong';
+
+  // Data
+  bool _loadingPending = false;
+  bool _loadingHistory = false;
+  List<Map<String, dynamic>> _pending = []; // Waiting
+  List<Map<String, dynamic>> _history = []; // Approved / Rejected
+  String? _jwt;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _bootstrap();
   }
 
   @override
@@ -27,174 +45,220 @@ class _LecturerHistoryState extends State<LecturerHistory>
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------------
-  // SAMPLE DATA
-  // ---------------------------------------------------------------------------
-  final List<Map<String, dynamic>> _allBookings = [
-    {
-      'room': 'Study Room A',
-      'date': 'Mon, Oct 20',
-      'time': '08:00 - 10:00',
-      'status': 0,
-      'approver': '',
-      'booked_by': 'Lisa',
-    },
-    {
-      'room': 'Study Room B',
-      'date': 'Wed, Oct 27',
-      'time': '12:00 - 14:00',
-      'status': 0,
-      'approver': '',
-      'booked_by': 'Tom',
-    },
-    {
-      'room': 'Study Room C',
-      'date': 'Mon, Oct 29',
-      'time': '10:00 - 12:00',
-      'status': 0,
-      'approver': '',
-      'booked_by': 'Adam',
-    },
-    {
-      'room': 'Study Room A',
-      'date': 'Mon, Oct 6',
-      'time': '08:00 - 10:00',
-      'status': 1,
-      'approver': 'Ajarn Surapong',
-      'booked_by': 'Lisa',
-    },
-    {
-      'room': 'Multimedia Room A',
-      'date': 'Wed, Oct 1',
-      'time': '08:00 - 10:00',
-      'status': 1,
-      'approver': 'Ajarn Bryan',
-      'booked_by': 'John',
-    },
-    {
-      'room': 'Study Room C',
-      'date': 'Tue, Sep 30',
-      'time': '13:00 - 15:00',
-      'status': 0, // Rejected
-      'approver': 'Ajarn Nick',
-      'booked_by': 'Emma',
-      'reason': 'Exceeded booking limit for this week',
-    },
-    {
-      'room': 'Meeting Room A',
-      'date': 'Fri, Sep 26',
-      'time': '10:00 - 12:00',
-      'status': 1,
-      'approver': 'Ajarn Surapong',
-      'booked_by': 'Olivia',
-    },
-    {
-      'room': 'Meeting Room A',
-      'date': 'Fri, Sep 26',
-      'time': '10:00 - 12:00',
-      'status': 1,
-      'approver': 'Ajarn Surapong',
-      'booked_by': 'Liam',
-    },
-  ];
-
-  // ---------------------------------------------------------------------------
-  // DIALOG HELPERS (Figma-style)
-  // ---------------------------------------------------------------------------
-  Future<void> _showApprovedDialog() async {
-    await showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        Future.delayed(const Duration(milliseconds: 1200), () {
-          if (Navigator.of(ctx, rootNavigator: true).canPop()) {
-            Navigator.of(ctx, rootNavigator: true).pop();
-          }
-        });
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.check_circle, size: 120, color: Color(0xFF1FA22A)),
-                SizedBox(height: 14),
-                Text(
-                  'Booking Approved',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  Future<void> _bootstrap() async {
+    _jwt = await _secure.read(key: 'jwt');
+    // Optional: get lecturer name from /me (if you want dynamic header)
+    await _fetchMe();
+    // load both tabs
+    await Future.wait([_fetchPending(), _fetchHistory()]);
   }
 
-  Future<void> _showRejectedDialog() async {
-    await showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        Future.delayed(const Duration(milliseconds: 1200), () {
-          if (Navigator.of(ctx, rootNavigator: true).canPop()) {
-            Navigator.of(ctx, rootNavigator: true).pop();
-          }
-        });
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.cancel, size: 120, color: Color(0xFFDA351C)),
-                SizedBox(height: 14),
-                Text(
-                  'Booking Rejected',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  Map<String, String> _authHeaders() {
+    final h = <String, String>{'Content-Type': 'application/json'};
+    if (_jwt != null && _jwt!.isNotEmpty) h['Authorization'] = 'Bearer $_jwt';
+    return h;
   }
 
-  // ---------------------------------------------------------------------------
-  // ACTIONS
-  // ---------------------------------------------------------------------------
-  Future<void> _approveBooking(Map<String, dynamic> booking) async {
-    await _showApprovedDialog(); // stay on page
-    if (!mounted) return;
-    setState(() {
-      final idx = _allBookings.indexOf(booking);
-      if (idx != -1) {
-        _allBookings[idx]['status'] = 1;
-        _allBookings[idx]['approver'] = username;
+  Future<void> _fetchMe() async {
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/me'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is Map && data['ok'] == true && data['user'] is Map) {
+          final u = data['user'] as Map;
+          final first = (u['first_name'] ?? '').toString().trim();
+          final last  = (u['last_name'] ?? '').toString().trim();
+          final name = [first, last].where((s) => s.isNotEmpty).join(' ');
+          if (name.isNotEmpty && mounted) {
+            setState(() => username = name);
+          }
+        }
       }
-    });
+    } catch (_) {}
+  }
+
+  String _formatYMD(String ymd) {
+    try {
+      final d = DateTime.parse(ymd);
+      const w = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      final wd = w[(d.weekday + 6) % 7];
+      final mo = m[d.month - 1];
+      return '$wd, $mo ${d.day}';
+    } catch (_) {
+      return ymd;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // API: Pending (students’ requests for this lecturer)
+  Future<void> _fetchPending() async {
+    setState(() => _loadingPending = true);
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/lecturer/bookings/pending'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode != 200) {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load pending bookings');
+        setState(() => _pending = []);
+        return;
+      }
+
+      final data = jsonDecode(resp.body);
+      if (data is! Map || data['ok'] != true || data['bookings'] is! List) {
+        _snack('Invalid pending response');
+        setState(() => _pending = []);
+        return;
+      }
+
+      final List rows = data['bookings'];
+      final List<Map<String, dynamic>> out = [];
+
+      for (final b in rows) {
+        // 🔧 Map your backend fields here if names differ
+        final roomName   = (b['room_name'] ?? 'Room').toString();
+        final dateYMD    = (b['booking_date'] ?? '').toString();
+        final start      = (b['start_time'] ?? '').toString();
+        final end        = (b['end_time'] ?? '').toString();
+        final bookedBy   = (b['booked_by_name'] ?? '').toString();
+        final bookingId  = b['booking_id'];
+        // status is Waiting for pending
+        out.add({
+          'booking_id': bookingId,
+          'room': roomName,
+          'date': _formatYMD(dateYMD),
+          'time': '${start.substring(0,5)} - ${end.substring(0,5)}',
+          'status': 0,             // 0 => pending/rejected in your UI; we’ll treat no approver = pending
+          'approver': '',          // empty => pending
+          'booked_by': bookedBy,
+          '_order_date': dateYMD,
+          '_order_slot': (b['slot_id'] ?? 0) as int,
+        });
+      }
+
+      // newest first
+      out.sort((a, b) {
+        final ad = DateTime.tryParse(a['_order_date'] ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bd = DateTime.tryParse(b['_order_date'] ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final c = bd.compareTo(ad);
+        if (c != 0) return c;
+        return ((b['_order_slot'] ?? 0) as int).compareTo((a['_order_slot'] ?? 0) as int);
+      });
+
+      if (mounted) setState(() => _pending = out);
+    } on TimeoutException {
+      _snack('Timeout while loading pending');
+    } catch (e) {
+      _snack('Network error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingPending = false);
+    }
+  }
+
+  // API: History (decisions made by this lecturer)
+  Future<void> _fetchHistory() async {
+    setState(() => _loadingHistory = true);
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/lecturer/bookings/history'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode != 200) {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load history');
+        setState(() => _history = []);
+        return;
+      }
+
+      final data = jsonDecode(resp.body);
+      if (data is! Map || data['ok'] != true || data['bookings'] is! List) {
+        _snack('Invalid history response');
+        setState(() => _history = []);
+        return;
+      }
+
+      final List rows = data['bookings'];
+      final List<Map<String, dynamic>> out = [];
+
+      for (final b in rows) {
+        final statusStr  = (b['booking_status'] ?? '').toString(); // 'Approved' | 'Rejected'
+        final approved   = statusStr == 'Approved';
+        final roomName   = (b['room_name'] ?? 'Room').toString();
+        final dateYMD    = (b['booking_date'] ?? '').toString();
+        final start      = (b['start_time'] ?? '').toString();
+        final end        = (b['end_time'] ?? '').toString();
+        final approver   = (b['approver_name'] ?? '').toString();
+        final reason     = (b['reject_reason'] ?? '').toString();
+        final bookedBy   = (b['booked_by_name'] ?? '').toString();
+
+        out.add({
+          'booking_id': b['booking_id'],
+          'room': roomName,
+          'date': _formatYMD(dateYMD),
+          'time': '${start.substring(0,5)} - ${end.substring(0,5)}',
+          'status': approved ? 1 : 0,   // 1 approved / 0 rejected (approver non-empty = history)
+          'approver': approver,
+          'booked_by': bookedBy,
+          'reason': reason,
+          '_order_date': dateYMD,
+          '_order_slot': (b['slot_id'] ?? 0) as int,
+        });
+      }
+
+      // newest first
+      out.sort((a, b) {
+        final ad = DateTime.tryParse(a['_order_date'] ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bd = DateTime.tryParse(b['_order_date'] ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final c = bd.compareTo(ad);
+        if (c != 0) return c;
+        return ((b['_order_slot'] ?? 0) as int).compareTo((a['_order_slot'] ?? 0) as int);
+      });
+
+      if (mounted) setState(() => _history = out);
+    } on TimeoutException {
+      _snack('Timeout while loading history');
+    } catch (e) {
+      _snack('Network error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
+
+  // Approve / Reject
+  Future<void> _approveBooking(Map<String, dynamic> booking) async {
+    final id = booking['booking_id'];
+    try {
+      final resp = await http
+          .post(Uri.parse('$_baseUrl/lecturer/bookings/$id/approve'),
+                headers: _authHeaders(), body: jsonEncode({}))
+          .timeout(const Duration(seconds: 10));
+      if (resp.statusCode == 200) {
+        await _showApprovedDialog();
+        // move item from pending -> history
+        setState(() {
+          _pending.removeWhere((e) => e['booking_id'] == id);
+        });
+        await _fetchHistory();
+      } else {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Approve failed');
+      }
+    } catch (e) {
+      _snack('Approve error: $e');
+    }
   }
 
   Future<void> _rejectBooking(Map<String, dynamic> booking) async {
+    final id = booking['booking_id'];
     final reasonController = TextEditingController();
     bool enabled = false;
 
-    final bool? ok = await showDialog<bool>(
+    final bool? submit = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Reason for Rejection'),
           content: TextField(
             controller: reasonController,
@@ -203,29 +267,18 @@ class _LecturerHistoryState extends State<LecturerHistory>
             decoration: InputDecoration(
               labelText: 'Reason',
               hintText: 'e.g., Room maintenance',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 18,
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             ),
             onChanged: (t) => setDialog(() => enabled = t.trim().isNotEmpty),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: enabled ? () => Navigator.of(ctx).pop(true) : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF003366),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                backgroundColor: const Color(0xFF003366), foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Submit'),
             ),
@@ -234,23 +287,37 @@ class _LecturerHistoryState extends State<LecturerHistory>
       ),
     );
 
-    if (ok == true) {
-      await _showRejectedDialog(); // stay on page
-      if (!mounted) return;
-      setState(() {
-        final idx = _allBookings.indexOf(booking);
-        if (idx != -1) {
-          _allBookings[idx]['status'] = 0;
-          _allBookings[idx]['approver'] = username;
-          _allBookings[idx]['reason'] = reasonController.text.trim();
+    if (submit == true) {
+      try {
+        final resp = await http
+            .post(
+              Uri.parse('$_baseUrl/lecturer/bookings/$id/reject'),
+              headers: _authHeaders(),
+              body: jsonEncode({'reason': reasonController.text.trim()}),
+            )
+            .timeout(const Duration(seconds: 10));
+        if (resp.statusCode == 200) {
+          await _showRejectedDialog();
+          setState(() {
+            _pending.removeWhere((e) => e['booking_id'] == id);
+          });
+          await _fetchHistory();
+        } else {
+          _snack(resp.body.isNotEmpty ? resp.body : 'Reject failed');
         }
-      });
+      } catch (e) {
+        _snack('Reject error: $e');
+      }
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // CARD & EMPTY
-  // ---------------------------------------------------------------------------
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // UI helpers (Card + Empty) — keeps your layout, adds colored border
   Widget _buildBookingCard(Map<String, dynamic> b) {
     final int status = b['status'] as int;
     final bool isPending = status == 0 && (b['approver'] as String).isEmpty;
@@ -261,7 +328,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
 
     if (isPending) {
       statusText = 'Pending Approval';
-      statusColor = Colors.orange; // pending -> orange (match student/staff)
+      statusColor = Colors.orange;
       statusIcon = Icons.circle_outlined;
     } else if (status == 0) {
       statusText = 'Rejected';
@@ -269,21 +336,16 @@ class _LecturerHistoryState extends State<LecturerHistory>
       statusIcon = Icons.close;
     } else {
       statusText = 'Approved';
-      statusColor = const Color(
-        0xFF1FA22A,
-      ); // approved -> green (match student view)
+      statusColor = const Color(0xFF1FA22A);
       statusIcon = Icons.check;
     }
-
-    // use statusColor for a visible card border to make status distinct
-    final Color borderColor = statusColor;
 
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: borderColor, width: 2),
+        side: BorderSide(color: statusColor, width: 2), // highlight by status
       ),
       elevation: 4,
       child: Padding(
@@ -291,7 +353,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title + room
+            // Session in Room
             RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 16, color: Colors.black),
@@ -306,7 +368,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
             ),
             const SizedBox(height: 8),
 
-            // Date & time
+            // Date + Time
             Row(
               children: [
                 const Icon(Icons.calendar_month_outlined, size: 20),
@@ -331,7 +393,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
                     children: [
                       const TextSpan(text: 'Booked by '),
                       TextSpan(
-                        text: b['booked_by'],
+                        text: (b['booked_by'] ?? '').toString(),
                         style: const TextStyle(color: Colors.orange),
                       ),
                     ],
@@ -341,29 +403,19 @@ class _LecturerHistoryState extends State<LecturerHistory>
             ),
             const SizedBox(height: 12),
 
-            // Pending actions OR status line
+            // Action buttons (pending) or status line (history)
             if (isPending) ...[
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _approveBooking(b),
-                      icon: const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      label: const Text(
-                        'Approve',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      icon: const Icon(Icons.check, size: 18, color: Colors.white),
+                      label: const Text('Approve', style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1FA22A),
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         shape: const StadiumBorder(),
                       ),
                     ),
@@ -372,22 +424,12 @@ class _LecturerHistoryState extends State<LecturerHistory>
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _rejectBooking(b),
-                      icon: const Icon(
-                        Icons.close,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      label: const Text(
-                        'Reject',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      icon: const Icon(Icons.close, size: 18, color: Colors.white),
+                      label: const Text('Reject', style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFDA351C),
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         shape: const StadiumBorder(),
                       ),
                     ),
@@ -406,7 +448,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
                         TextSpan(text: statusText),
                         const TextSpan(text: ' by '),
                         TextSpan(
-                          text: b['approver'],
+                          text: (b['approver'] ?? '').toString(),
                           style: const TextStyle(color: Colors.orange),
                         ),
                       ],
@@ -414,26 +456,17 @@ class _LecturerHistoryState extends State<LecturerHistory>
                   ),
                 ],
               ),
-              if (status == 0 &&
-                  (b['approver'] as String).isNotEmpty &&
-                  b.containsKey('reason')) ...[
+              if (status == 0 && (b['approver'] as String).isNotEmpty && (b['reason'] ?? '').toString().isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.info_outline,
-                      size: 20,
-                      color: Colors.redAccent,
-                    ),
+                    const Icon(Icons.info_outline, size: 20, color: Colors.redAccent),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Reason: ${b['reason']}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
+                        style: const TextStyle(fontSize: 14, color: Colors.black87),
                       ),
                     ),
                   ],
@@ -447,41 +480,88 @@ class _LecturerHistoryState extends State<LecturerHistory>
   }
 
   Widget _buildEmptyState(String title) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-        const SizedBox(height: 16),
-        Text(
-          '$title is empty',
-          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text('$title is empty', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            Text('No ${title.toLowerCase()} bookings found', style: TextStyle(color: Colors.grey[500])),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'No ${title.toLowerCase()} bookings found',
-          style: TextStyle(color: Colors.grey[500]),
-        ),
-      ],
-    ),
-  );
+      );
 
-  // ---------------------------------------------------------------------------
+  // Small status dialogs
+  Future<void> _showApprovedDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (Navigator.of(ctx, rootNavigator: true).canPop()) {
+            Navigator.of(ctx, rootNavigator: true).pop();
+          }
+        });
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: const Padding(
+            padding: EdgeInsets.fromLTRB(24, 28, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle, size: 120, color: Color(0xFF1FA22A)),
+                SizedBox(height: 14),
+                Text('Booking Approved', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showRejectedDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (Navigator.of(ctx, rootNavigator: true).canPop()) {
+            Navigator.of(ctx, rootNavigator: true).pop();
+          }
+        });
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: const Padding(
+            padding: EdgeInsets.fromLTRB(24, 28, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cancel, size: 120, color: Color(0xFFDA351C)),
+                SizedBox(height: 14),
+                Text('Booking Rejected', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // BUILD
-  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final pending = _allBookings
-        .where((b) => (b['approver'] as String).isEmpty)
-        .toList();
-    final history = _allBookings
-        .where((b) => (b['approver'] as String).isNotEmpty)
-        .toList();
     final headerHeight = MediaQuery.of(context).size.height * 0.24;
+
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
       extendBody: true,
 
-      // ===== Bottom Nav (same format as Staff) =====
+      // Bottom Nav
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -490,40 +570,20 @@ class _LecturerHistoryState extends State<LecturerHistory>
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LecturerDashboard())),
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.home_filled,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LecturerDashboard()),
-                ),
-              ),
-
               IconButton(
                 icon: const Icon(Icons.search, color: Colors.white, size: 28),
                 onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LecturerBrowsing()),
-                  );
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LecturerBrowsing()));
                 },
               ),
               IconButton(
@@ -533,18 +593,11 @@ class _LecturerHistoryState extends State<LecturerHistory>
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text(
-                        'You are already on the Booking page',
-                      ),
+                      content: const Text('You are already on the Booking page'),
                       duration: const Duration(milliseconds: 1200),
                       behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   );
                 },
@@ -554,17 +607,14 @@ class _LecturerHistoryState extends State<LecturerHistory>
         ),
       ),
 
-      // ===== Body =====
+      // Body
       body: Column(
         children: [
-          // ===== Header (matched to StaffHistory) =====
+          // Header + Tabs (UI unchanged)
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFF003366),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             width: double.infinity,
@@ -603,26 +653,14 @@ class _LecturerHistoryState extends State<LecturerHistory>
                               ],
                             ),
                           ),
-                          const Text(
-                            'Booking Requests',
-                            style: TextStyle(fontSize: 25, color: Colors.white),
-                          ),
+                          const Text('Booking Requests', style: TextStyle(fontSize: 25, color: Colors.white)),
                         ],
                       ),
-                      IconButton(
-                        onPressed: () => showLogoutDialog(context),
-                        icon: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
+                      IconButton(onPressed: () => showLogoutDialog(context), icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Tabs
                 Padding(
                   padding: const EdgeInsets.only(left: 20.0),
                   child: SizedBox(
@@ -636,10 +674,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
                       dividerColor: Colors.transparent,
                       labelStyle: const TextStyle(fontSize: 20),
                       labelPadding: const EdgeInsets.symmetric(horizontal: 0),
-                      tabs: const [
-                        Tab(text: 'Pending'),
-                        Tab(text: 'History'),
-                      ],
+                      tabs: const [Tab(text: 'Pending'), Tab(text: 'History')],
                     ),
                   ),
                 ),
@@ -647,25 +682,29 @@ class _LecturerHistoryState extends State<LecturerHistory>
             ),
           ),
 
-          // ===== Tab Content =====
+          // Tabs
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                pending.isEmpty
-                    ? _buildEmptyState('Pending')
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 10, bottom: 100),
-                        itemCount: pending.length,
-                        itemBuilder: (_, i) => _buildBookingCard(pending[i]),
-                      ),
-                history.isEmpty
-                    ? _buildEmptyState('History')
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 10, bottom: 100),
-                        itemCount: history.length,
-                        itemBuilder: (_, i) => _buildBookingCard(history[i]),
-                      ),
+                _loadingPending
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_pending.isEmpty
+                        ? _buildEmptyState('Pending')
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(top: 10, bottom: 100),
+                            itemCount: _pending.length,
+                            itemBuilder: (_, i) => _buildBookingCard(_pending[i]),
+                          )),
+                _loadingHistory
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_history.isEmpty
+                        ? _buildEmptyState('History')
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(top: 10, bottom: 100),
+                            itemCount: _history.length,
+                            itemBuilder: (_, i) => _buildBookingCard(_history[i]),
+                          )),
               ],
             ),
           ),

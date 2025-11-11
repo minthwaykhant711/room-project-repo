@@ -15,7 +15,9 @@ class StudentBrowsing extends StatefulWidget {
 
   // (optional) back-compat for older callers; not used with JWT now
   static String? mobileTokenUserId;
-  static void setMobileToken(String id) { mobileTokenUserId = id; }
+  static void setMobileToken(String id) {
+    mobileTokenUserId = id;
+  }
 }
 
 class _StudentBrowsingState extends State<StudentBrowsing> {
@@ -41,7 +43,7 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
     super.initState();
     final now = DateTime.now();
     _todayYMD =
-        "${now.year.toString().padLeft(4,'0')}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}";
+        "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
     _bootstrap();
   }
 
@@ -53,13 +55,27 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
   Map<String, String> _authHeaders() {
     final headers = <String, String>{'Content-Type': 'application/json'};
-    if (_jwt != null && _jwt!.isNotEmpty) headers['Authorization'] = 'Bearer $_jwt';
+    if (_jwt != null && _jwt!.isNotEmpty)
+      headers['Authorization'] = 'Bearer $_jwt';
     return headers;
   }
 
   String _formatHeaderDate(DateTime d) {
-    const w = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
-    const m = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const w = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const m = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
     final weekday = w[(d.weekday + 6) % 7];
     final month = m[d.month - 1];
     return '$weekday, $month ${d.day}, ${d.year}';
@@ -67,20 +83,27 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
 
   Color getStatusColor(String status) {
     switch (status) {
-      case 'available': return Colors.teal;
-      case 'pending':   return Colors.orange;
-      case 'reserved':  return const Color.fromARGB(255, 12, 143, 209);
-      case 'disabled':  return Colors.red;   // room offline only
-      case 'passed':    return Colors.grey;  // past slots
-      default:          return Colors.grey;
+      case 'available':
+        return Colors.teal;
+      case 'pending':
+        return Colors.orange;
+      case 'reserved':
+        return const Color.fromARGB(255, 12, 143, 209);
+      case 'disabled':
+        return Colors.red; // room offline only
+      case 'passed':
+        return Colors.grey; // past slots
+      default:
+        return Colors.grey;
     }
   }
+
   Color _chipBg(String status) => getStatusColor(status).withOpacity(0.12);
 
   String _guessCategory(String name) {
     final n = name.toLowerCase();
     if (n.contains('multi')) return 'Multimedia';
-    if (n.contains('meet'))  return 'Meeting';
+    if (n.contains('meet')) return 'Meeting';
     return 'Study';
   }
 
@@ -139,7 +162,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               rawStatuses = (r['statuses'] as Map<String, dynamic>);
             }
             final Map<String, String> statuses = {
-              for (final slot in timeSlots) slot: (rawStatuses[slot]?.toString() ?? 'available')
+              for (final slot in timeSlots)
+                slot: (rawStatuses[slot]?.toString() ?? 'available'),
             };
 
             final cat = _guessCategory(name);
@@ -149,7 +173,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               'details': desc.isNotEmpty ? desc : 'Room',
               'max': 6,
               'statuses': statuses,
-              'image': imageUrl.isNotEmpty ? imageUrl : 'assets/images/study room A.jpg',
+              'image': imageUrl.isNotEmpty
+                  ? imageUrl
+                  : 'assets/images/study room A.jpg',
               // backend should include room_status; default to 1 (enabled)
               'room_status': (r['room_status'] ?? 1),
             });
@@ -160,9 +186,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             final statuses = Map<String, String>.from(room['statuses'] as Map);
             final isFullyBooked = !statuses.values.any((v) => v == 'available');
             final isDisabled = (room['room_status'] ?? 1) == 0;
-            if (isDisabled) return 2;          // disabled → last
-            if (isFullyBooked) return 1;       // fully booked → after available
-            return 0;                           // available → first
+            if (isDisabled) return 2; // disabled → last
+            if (isFullyBooked) return 1; // fully booked → after available
+            return 0; // available → first
           }
 
           for (final cat in grouped.keys) {
@@ -180,7 +206,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
           _snack('Invalid availability response');
         }
       } else {
-        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load availability');
+        _snack(
+          resp.body.isNotEmpty ? resp.body : 'Failed to load availability',
+        );
       }
     } on TimeoutException {
       _snack('Timeout while loading availability');
@@ -241,7 +269,11 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
       } else {
         try {
           final err = jsonDecode(resp.body);
-          _snack(err is Map && err['error'] != null ? err['error'] : 'Booking failed');
+          _snack(
+            err is Map && err['error'] != null
+                ? err['error']
+                : 'Booking failed',
+          );
         } catch (_) {
           _snack(resp.body.isNotEmpty ? resp.body : 'Booking failed');
         }
@@ -266,16 +298,30 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
         return BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
           child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
             titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
             contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(room['name'], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                Text(
+                  room['name'],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                Text("${room['details']}  •  Max: ${room['max']} people",
-                    style: const TextStyle(color: Colors.black54, fontSize: 13.5, height: 1.2)),
+                Text(
+                  "${room['details']}  •  Max: ${room['max']} people",
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 13.5,
+                    height: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 const Divider(height: 1),
               ],
@@ -284,7 +330,8 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               spacing: 10,
               runSpacing: 10,
               children: timeSlots.map((slot) {
-                final status = (room['statuses'][slot] as String?) ?? 'available';
+                final status =
+                    (room['statuses'][slot] as String?) ?? 'available';
                 final enabled = status == 'available';
                 final color = getStatusColor(status);
 
@@ -297,9 +344,22 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       Text(slot),
                       const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-                        child: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -311,7 +371,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                           await _showConfirmDialog(room: room, slot: slot);
                         }
                       : null,
-                  shape: const StadiumBorder(side: BorderSide(color: Color(0xFFE0E0E0))),
+                  shape: const StadiumBorder(
+                    side: BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
                 );
               }).toList(),
             ),
@@ -332,98 +394,141 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
       context: context,
       barrierDismissible: true,
       builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setStateDialog) {
-          return BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              title: const Text('Confirm Booking', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(color: Colors.black87, fontSize: 16),
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            return BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                title: const Text(
+                  'Confirm Booking',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 16,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Session in '),
+                            TextSpan(
+                              text: room['name'],
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
                         children: [
-                          const TextSpan(text: 'Session in '),
-                          TextSpan(text: room['name'], style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600)),
+                          const Icon(Icons.calendar_month, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatHeaderDate(DateTime.now()),
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(children: [
-                      const Icon(Icons.calendar_month, size: 18),
-                      const SizedBox(width: 6),
-                      Text(_formatHeaderDate(DateTime.now()), style: const TextStyle(fontSize: 14)),
-                    ]),
-                    const SizedBox(height: 6),
-                    Row(children: [
-                      const Icon(Icons.access_time, size: 18),
-                      const SizedBox(width: 6),
-                      Text(slot, style: const TextStyle(fontSize: 14)),
-                    ]),
-                    const SizedBox(height: 12),
-                    const Text('Objective (required)', style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: controller,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'e.g., Group study for CS101 assignment',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time, size: 18),
+                          const SizedBox(width: 6),
+                          Text(slot, style: const TextStyle(fontSize: 14)),
+                        ],
                       ),
-                      onChanged: (v) => setStateDialog(() => canConfirm = v.trim().isNotEmpty),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Objective (required)',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: controller,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'e.g., Group study for CS101 assignment',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: (v) => setStateDialog(
+                          () => canConfirm = v.trim().isNotEmpty,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actionsAlignment: MainAxisAlignment.spaceEvenly,
+                actions: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                  ],
-                ),
-              ),
-              actionsAlignment: MainAxisAlignment.spaceEvenly,
-              actions: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green, foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: canConfirm
-                      ? () async {
-                          Navigator.of(ctx).pop();
-                          final ok = await _createBooking(
-                            roomId: (room['id'] as int),
-                            slotLabel: slot,
-                            objective: controller.text.trim(),
-                          );
-                          if (ok) {
-                            setState(() {
-                              final cat = _guessCategory((room['name'] as String));
-                              final list = roomsByCategory[cat]!;
-                              final idx = list.indexWhere((e) => e['id'] == room['id']);
-                              if (idx >= 0) {
-                                final statuses = Map<String, String>.from(list[idx]['statuses'] as Map);
-                                statuses[slot] = 'pending';
-                                list[idx]['statuses'] = statuses;
-                              }
-                            });
-                            await _showSuccessDialog();
-                            await _fetchAvailability();
+                    onPressed: canConfirm
+                        ? () async {
+                            Navigator.of(ctx).pop();
+                            final ok = await _createBooking(
+                              roomId: (room['id'] as int),
+                              slotLabel: slot,
+                              objective: controller.text.trim(),
+                            );
+                            if (ok) {
+                              setState(() {
+                                final cat = _guessCategory(
+                                  (room['name'] as String),
+                                );
+                                final list = roomsByCategory[cat]!;
+                                final idx = list.indexWhere(
+                                  (e) => e['id'] == room['id'],
+                                );
+                                if (idx >= 0) {
+                                  final statuses = Map<String, String>.from(
+                                    list[idx]['statuses'] as Map,
+                                  );
+                                  statuses[slot] = 'pending';
+                                  list[idx]['statuses'] = statuses;
+                                }
+                              });
+                              await _showSuccessDialog();
+                              await _fetchAvailability();
+                            }
                           }
-                        }
-                      : null,
-                  child: const Text('Confirm'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red, foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        : null,
+                    child: const Text('Confirm'),
                   ),
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-              ],
-            ),
-          );
-        });
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -442,9 +547,11 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             children: [
               Icon(Icons.check_circle, size: 140, color: Colors.green),
               SizedBox(height: 14),
-              Text('Your reservation is completed',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center),
+              Text(
+                'Your reservation is completed',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -469,14 +576,27 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
               IconButton(
-                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
                 onPressed: () {
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -484,15 +604,23 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       content: const Text('You are already on the Home page'),
                       duration: const Duration(milliseconds: 1200),
                       behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   );
                 },
               ),
               IconButton(
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentHistory())),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const StudentHistory()),
+                ),
               ),
             ],
           ),
@@ -506,7 +634,10 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             height: headerHeight,
             decoration: const BoxDecoration(
               color: Color(0xFF003366),
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             child: Column(
@@ -518,8 +649,20 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _HeaderText(title: _firstName.isNotEmpty ? 'Hi, $_firstName' : 'Hi,', subtitle: 'Reserve the room'),
-                      IconButton(onPressed: () => showLogoutDialog(context), icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40)),
+                      _HeaderText(
+                        title: _firstName.isNotEmpty
+                            ? 'Hi, $_firstName'
+                            : 'Hi,',
+                        subtitle: 'Reserve the room',
+                      ),
+                      IconButton(
+                        onPressed: () => showLogoutDialog(context),
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -527,14 +670,46 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))]),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 18,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(width: 30, height: 30, decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle), child: const Icon(Icons.calendar_month, color: Colors.white, size: 24)),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: const BoxDecoration(
+                            color: Colors.black87,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.calendar_month,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
                         const SizedBox(width: 12),
-                        Text(_formatHeaderDate(DateTime.now()), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black87)),
+                        Text(
+                          _formatHeaderDate(DateTime.now()),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -554,18 +729,31 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                 final isSelected = cat == selectedCategory;
                 return Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(left: i == 0 ? 0 : 8, right: i == categories.length - 1 ? 0 : 8),
+                    padding: EdgeInsets.only(
+                      left: i == 0 ? 0 : 8,
+                      right: i == categories.length - 1 ? 0 : 8,
+                    ),
                     child: ChoiceChip(
                       showCheckmark: false,
                       label: Center(child: Text(cat.toLowerCase())),
                       selected: isSelected,
                       backgroundColor: Colors.white,
                       selectedColor: const Color(0xFF184D83),
-                      shape: const StadiumBorder(side: BorderSide(color: Color(0xFFBDBDBD), width: 1)),
-                      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontSize: 14, fontWeight: FontWeight.w500),
+                      shape: const StadiumBorder(
+                        side: BorderSide(color: Color(0xFFBDBDBD), width: 1),
+                      ),
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      onSelected: (_) => setState(() => selectedCategory = cat),
+                      onSelected: (_) async {
+                        if (_loading) return;
+                        setState(() => selectedCategory = cat);
+                        await _fetchAvailability();
+                      },
                     ),
                   ),
                 );
@@ -590,13 +778,18 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                       final double imgH = cardH * 0.70;
 
                       final room = rooms[index];
-                      final Map<String, String> statuses = Map<String, String>.from(room['statuses'] as Map);
+                      final Map<String, String> statuses =
+                          Map<String, String>.from(room['statuses'] as Map);
 
-                      final bool isFullyBookedToday = !statuses.values.any((v) => v == 'available');
+                      final bool isFullyBookedToday = !statuses.values.any(
+                        (v) => v == 'available',
+                      );
                       final bool isDisabled = (room['room_status'] ?? 1) == 0;
 
                       final String img = (room['image'] ?? '').toString();
-                      final bool isNetwork = img.startsWith('http://') || img.startsWith('https://');
+                      final bool isNetwork =
+                          img.startsWith('http://') ||
+                          img.startsWith('https://');
 
                       return Container(
                         margin: EdgeInsets.only(
@@ -606,7 +799,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                         width: cardW,
                         height: cardH,
                         clipBehavior: Clip.hardEdge,
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -616,7 +811,11 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: const [
-                                  BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
                                 ],
                               ),
                               child: Column(
@@ -624,34 +823,53 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                                 children: [
                                   // Image
                                   ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(16),
+                                    ),
                                     child: SizedBox(
                                       height: imgH,
                                       width: double.infinity,
                                       child: isNetwork
-                                          ? Image.network(img, fit: BoxFit.cover)
+                                          ? Image.network(
+                                              img,
+                                              fit: BoxFit.cover,
+                                            )
                                           : Image.asset(img, fit: BoxFit.cover),
                                     ),
                                   ),
                                   // Info
                                   Expanded(
                                     child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        10,
+                                        16,
+                                        10,
+                                        8,
+                                      ),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(room['name'],
-                                              style: const TextStyle(
-                                                  fontSize: 16.5, fontWeight: FontWeight.w700),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis),
+                                          Text(
+                                            room['name'],
+                                            style: const TextStyle(
+                                              fontSize: 16.5,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                           const SizedBox(height: 2),
                                           Text(
                                             "${room['details']}  •  Max : ${room['max']} people",
                                             style: const TextStyle(
-                                                color: Colors.black54, fontSize: 12.5, height: 1.25),
+                                              color: Colors.black54,
+                                              fontSize: 12.5,
+                                              height: 1.25,
+                                            ),
                                             maxLines: 2,
-                                            overflow: TextOverflow.ellipsis),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                           const SizedBox(height: 15),
                                           Row(
                                             children: [
@@ -659,26 +877,47 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                                                 width: 28,
                                                 height: 28,
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFFF2F2F2),
-                                                  borderRadius: BorderRadius.circular(14),
+                                                  color: const Color(
+                                                    0xFFF2F2F2,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(14),
                                                 ),
-                                                child: const Icon(Icons.groups_outlined,
-                                                    size: 18, color: Colors.black87),
+                                                child: const Icon(
+                                                  Icons.groups_outlined,
+                                                  size: 18,
+                                                  color: Colors.black87,
+                                                ),
                                               ),
                                               const SizedBox(width: 10),
                                               ElevatedButton.icon(
-                                                onPressed: () => _showSlotsDialog(room),
-                                                icon: const Icon(Icons.info_outline, size: 18),
+                                                onPressed: () =>
+                                                    _showSlotsDialog(room),
+                                                icon: const Icon(
+                                                  Icons.info_outline,
+                                                  size: 18,
+                                                ),
                                                 label: const Text('Details'),
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: Colors.white,
-                                                  foregroundColor: const Color(0xFF003366),
+                                                  foregroundColor: const Color(
+                                                    0xFF003366,
+                                                  ),
                                                   elevation: 0,
-                                                  side: const BorderSide(color: Color(0xFFBDBDBD)),
+                                                  side: const BorderSide(
+                                                    color: Color(0xFFBDBDBD),
+                                                  ),
                                                   shape: RoundedRectangleBorder(
-                                                      borderRadius: BorderRadius.circular(10)),
-                                                  padding: const EdgeInsets.symmetric(
-                                                      horizontal: 12, vertical: 10),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 10,
+                                                      ),
                                                 ),
                                               ),
                                               const Spacer(),
@@ -695,7 +934,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                             // Overlay if fully booked or disabled (dim + banner)
                             if (isDisabled || isFullyBookedToday) ...[
                               Positioned.fill(
-                                child: Container(color: Colors.white.withOpacity(0.60)),
+                                child: Container(
+                                  color: Colors.white.withOpacity(0.60),
+                                ),
                               ),
                               Positioned(
                                 top: 10,
@@ -703,7 +944,10 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
                                 right: 0,
                                 child: Center(
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.black.withOpacity(0.80),
                                       borderRadius: BorderRadius.circular(20),
@@ -744,8 +988,18 @@ class _HeaderText extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-        Text(subtitle, style: const TextStyle(color: Colors.white, fontSize: 22)),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          subtitle,
+          style: const TextStyle(color: Colors.white, fontSize: 22),
+        ),
       ],
     );
   }

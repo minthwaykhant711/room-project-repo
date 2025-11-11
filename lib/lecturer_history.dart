@@ -22,8 +22,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
   late TabController _tabController;
 
-  // Greeting / name at header (keep your default)
-  String username = 'Aj.Surapong';
+  String username = '';
 
   // Data
   bool _loadingPending = false;
@@ -62,7 +61,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
   Future<void> _fetchMe() async {
     try {
       final resp = await http
-          .get(Uri.parse('$_baseUrl/me'), headers: _authHeaders())
+          .get(Uri.parse('$_baseUrl/common/user_auth'), headers: _authHeaders())
           .timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
@@ -318,166 +317,160 @@ class _LecturerHistoryState extends State<LecturerHistory>
 
   // ─────────────────────────────────────────────────────────────
   // UI helpers (Card + Empty) — keeps your layout, adds colored border
-  Widget _buildBookingCard(Map<String, dynamic> b) {
-    final int status = b['status'] as int;
-    final bool isPending = status == 0 && (b['approver'] as String).isEmpty;
+Widget _buildBookingCard(Map<String, dynamic> b, {bool hideApproverName = false}) {
+  final int status = b['status'] as int;
+  final bool isPending = status == 0 && (b['approver'] as String).isEmpty;
 
-    String statusText;
-    Color statusColor;
-    IconData statusIcon;
+  String statusText;
+  Color statusColor;
+  IconData statusIcon;
 
-    if (isPending) {
-      statusText = 'Pending Approval';
-      statusColor = Colors.orange;
-      statusIcon = Icons.circle_outlined;
-    } else if (status == 0) {
-      statusText = 'Rejected';
-      statusColor = Colors.red;
-      statusIcon = Icons.close;
-    } else {
-      statusText = 'Approved';
-      statusColor = const Color(0xFF1FA22A);
-      statusIcon = Icons.check;
-    }
+  if (isPending) {
+    statusText = 'Pending Approval';
+    statusColor = Colors.orange;
+    statusIcon = Icons.circle_outlined;
+  } else if (status == 0) {
+    statusText = 'Rejected';
+    statusColor = Colors.red;
+    statusIcon = Icons.close;
+  } else {
+    statusText = 'Approved';
+    statusColor = const Color(0xFF1FA22A);
+    statusIcon = Icons.check;
+  }
 
-    return Card(
-      color: Colors.white,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: statusColor, width: 2), // highlight by status
-      ),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Session in Room
-            RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 16, color: Colors.black),
-                children: [
-                  const TextSpan(text: 'Session in '),
-                  TextSpan(
-                    text: b['room'],
-                    style: const TextStyle(color: Colors.orange),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Date + Time
-            Row(
+  return Card(
+    color: Colors.white,
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+      side: BorderSide(color: statusColor, width: 2),
+    ),
+    elevation: 4,
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Session in Room
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 16, color: Colors.black),
               children: [
-                const Icon(Icons.calendar_month_outlined, size: 20),
-                const SizedBox(width: 6),
-                Text(b['date'], style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 20),
-                const Icon(Icons.access_time, size: 18),
-                const SizedBox(width: 6),
-                Text(b['time'], style: const TextStyle(fontSize: 14)),
+                const TextSpan(text: 'Session in '),
+                TextSpan(text: b['room'], style: const TextStyle(color: Colors.orange)),
               ],
             ),
-            const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 8),
 
-            // Booked by
+          // Date + Time
+          Row(
+            children: [
+              const Icon(Icons.calendar_month_outlined, size: 20),
+              const SizedBox(width: 6),
+              Text(b['date'], style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 20),
+              const Icon(Icons.access_time, size: 18),
+              const SizedBox(width: 6),
+              Text(b['time'], style: const TextStyle(fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Booked by
+          Row(
+            children: [
+              const Icon(Icons.person_outline, size: 20),
+              const SizedBox(width: 6),
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 14, color: Colors.black),
+                  children: [
+                    const TextSpan(text: 'Booked by '),
+                    TextSpan(text: (b['booked_by'] ?? '').toString(), style: const TextStyle(color: Colors.orange)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Pending actions OR status line
+          if (isPending) ...[
             Row(
               children: [
-                const Icon(Icons.person_outline, size: 20),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _approveBooking(b),
+                    icon: const Icon(Icons.check, size: 18, color: Colors.white),
+                    label: const Text('Approve', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1FA22A),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _rejectBooking(b),
+                    icon: const Icon(Icons.close, size: 18, color: Colors.white),
+                    label: const Text('Reject', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDA351C),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 20),
                 const SizedBox(width: 6),
+                // Show "Approved" / "Rejected" only; omit "by <name>" if hideApproverName
                 RichText(
                   text: TextSpan(
                     style: const TextStyle(fontSize: 14, color: Colors.black),
                     children: [
-                      const TextSpan(text: 'Booked by '),
-                      TextSpan(
-                        text: (b['booked_by'] ?? '').toString(),
-                        style: const TextStyle(color: Colors.orange),
-                      ),
+                      TextSpan(text: statusText),
+                      if (!hideApproverName && (b['approver'] ?? '').toString().isNotEmpty) ...[
+                        const TextSpan(text: ' by '),
+                        TextSpan(text: (b['approver'] ?? '').toString(), style: const TextStyle(color: Colors.orange)),
+                      ],
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-
-            // Action buttons (pending) or status line (history)
-            if (isPending) ...[
+            if (status == 0 && (b['reason'] ?? '').toString().isNotEmpty) ...[
+              const SizedBox(height: 8),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _approveBooking(b),
-                      icon: const Icon(Icons.check, size: 18, color: Colors.white),
-                      label: const Text('Approve', style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1FA22A),
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        shape: const StadiumBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _rejectBooking(b),
-                      icon: const Icon(Icons.close, size: 18, color: Colors.white),
-                      label: const Text('Reject', style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDA351C),
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        shape: const StadiumBorder(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ] else ...[
-              Row(
-                children: [
-                  Icon(statusIcon, color: statusColor, size: 20),
+                  const Icon(Icons.info_outline, size: 20, color: Colors.redAccent),
                   const SizedBox(width: 6),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(fontSize: 14, color: Colors.black),
-                      children: [
-                        TextSpan(text: statusText),
-                        const TextSpan(text: ' by '),
-                        TextSpan(
-                          text: (b['approver'] ?? '').toString(),
-                          style: const TextStyle(color: Colors.orange),
-                        ),
-                      ],
+                  Expanded(
+                    child: Text(
+                      'Reason: ${b['reason']}',
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
                     ),
                   ),
                 ],
               ),
-              if (status == 0 && (b['approver'] as String).isNotEmpty && (b['reason'] ?? '').toString().isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline, size: 20, color: Colors.redAccent),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Reason: ${b['reason']}',
-                        style: const TextStyle(fontSize: 14, color: Colors.black87),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ],
-        ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState(String title) => Center(
         child: Column(
@@ -703,7 +696,7 @@ class _LecturerHistoryState extends State<LecturerHistory>
                         : ListView.builder(
                             padding: const EdgeInsets.only(top: 10, bottom: 100),
                             itemCount: _history.length,
-                            itemBuilder: (_, i) => _buildBookingCard(_history[i]),
+                            itemBuilder: (_, i) => _buildBookingCard(_history[i], hideApproverName: true),
                           )),
               ],
             ),

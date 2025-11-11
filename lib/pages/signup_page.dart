@@ -33,7 +33,6 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  // 🔌 calls your Node API; preserves your original UX.
   // If backend returns { token }, we store it securely.
   void _attemptSignUp() async {
     final email = _emailController.text.trim();
@@ -62,7 +61,7 @@ class _SignUpPageState extends State<SignUpPage> {
     try {
       final resp = await http
           .post(
-            Uri.parse('$_baseUrl/register/create'),
+            Uri.parse('$_baseUrl/api/register/create'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'email': email,

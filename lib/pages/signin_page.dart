@@ -61,7 +61,7 @@ class _SignInPageState extends State<SignInPage> {
     setState(() => _loading = true);
     try {
       final resp = await http.post(
-        Uri.parse('$_baseUrl/login'),
+        Uri.parse('$_baseUrl/api/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
@@ -127,7 +127,7 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
-    // ⬇️ same UI as before
+    // same UI as before
     return Scaffold(
       body: Container(
         width: size.width,

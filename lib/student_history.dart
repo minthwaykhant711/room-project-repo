@@ -44,7 +44,7 @@ class _StudentHistoryState extends State<StudentHistory> {
 
   Future<void> _fetchMe() async {
     try {
-      final resp = await http.get(Uri.parse('$_baseUrl/me'), headers: _authHeaders()).timeout(const Duration(seconds: 8));
+      final resp = await http.get(Uri.parse('$_baseUrl/common/user_auth'), headers: _authHeaders()).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         if (data is Map && data['ok'] == true && data['user'] is Map) {
@@ -72,7 +72,7 @@ class _StudentHistoryState extends State<StudentHistory> {
   Future<void> _fetchBookings() async {
     setState(() => _loading = true);
     try {
-      final resp = await http.get(Uri.parse('$_baseUrl/bookings/mine'), headers: _authHeaders()).timeout(const Duration(seconds: 12));
+      final resp = await http.get(Uri.parse('$_baseUrl/student/bookings/history'), headers: _authHeaders()).timeout(const Duration(seconds: 12));
 
       if (resp.statusCode != 200) {
         _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load bookings');

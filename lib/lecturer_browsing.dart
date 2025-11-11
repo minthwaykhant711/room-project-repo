@@ -61,7 +61,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
   Future<void> _fetchMe() async {
     try {
       final resp = await http
-          .get(Uri.parse('$_baseUrl/me'), headers: _authHeaders())
+          .get(Uri.parse('$_baseUrl/common/user_auth'), headers: _authHeaders())
           .timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
@@ -126,7 +126,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
   Future<void> _fetchAvailability() async {
     setState(() => _loading = true);
     try {
-      final url = Uri.parse('$_baseUrl/rooms/availability?date=$_todayYMD');
+      final url = Uri.parse('$_baseUrl/common/rooms/availability?date=$_todayYMD');
       final resp = await http
           .get(url, headers: _authHeaders())
           .timeout(const Duration(seconds: 12));

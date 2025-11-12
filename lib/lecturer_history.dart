@@ -68,10 +68,9 @@ class _LecturerHistoryState extends State<LecturerHistory>
         if (data is Map && data['ok'] == true && data['user'] is Map) {
           final u = data['user'] as Map;
           final first = (u['first_name'] ?? '').toString().trim();
-          final last  = (u['last_name'] ?? '').toString().trim();
-          final name = [first, last].where((s) => s.isNotEmpty).join(' ');
+          final name = first;
           if (name.isNotEmpty && mounted) {
-            setState(() => username = name);
+            setState(() => username = 'Aj.$name');
           }
         }
       }

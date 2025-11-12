@@ -91,7 +91,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
       'SEP',
       'OCT',
       'NOV',
-      'DEC'
+      'DEC',
     ];
     final weekday = w[(d.weekday + 6) % 7];
     final month = m[d.month - 1];
@@ -126,7 +126,9 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
   Future<void> _fetchAvailability() async {
     setState(() => _loading = true);
     try {
-      final url = Uri.parse('$_baseUrl/common/rooms/availability?date=$_todayYMD');
+      final url = Uri.parse(
+        '$_baseUrl/common/rooms/availability?date=$_todayYMD',
+      );
       final resp = await http
           .get(url, headers: _authHeaders())
           .timeout(const Duration(seconds: 12));
@@ -173,13 +175,17 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
         final name = (r['name'] ?? '').toString();
         final desc = (r['description'] ?? '').toString();
         final imageUrl = (r['image_url'] ?? '').toString();
+        final cap = (r['capacity'] ?? 0) is int
+            ? (r['capacity'] as int)
+            : int.tryParse('${r['capacity']}') ?? 0;
 
         Map<String, dynamic> rawStatuses = {};
         if (r['statuses'] is Map<String, dynamic>) {
           rawStatuses = (r['statuses'] as Map<String, dynamic>);
         }
         final Map<String, String> statuses = {
-          for (final slot in timeSlots) slot: (rawStatuses[slot]?.toString() ?? 'available')
+          for (final slot in timeSlots)
+            slot: (rawStatuses[slot]?.toString() ?? 'available'),
         };
 
         final cat = _guessCategory(name);
@@ -187,7 +193,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
           'id': r['id'],
           'name': name,
           'details': desc.isNotEmpty ? desc : 'Room',
-          'max': 6,
+          'max': cap, // <- from API
           'statuses': statuses,
           'image': imageUrl.isNotEmpty
               ? imageUrl
@@ -241,8 +247,9 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
         return BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
           child: AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
             titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
             contentPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
             title: Column(
@@ -260,7 +267,10 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 Text(
                   "${room['details']}  •  Max: ${room['max']} people",
                   style: const TextStyle(
-                      color: Colors.black54, fontSize: 13.5, height: 1.2),
+                    color: Colors.black54,
+                    fontSize: 13.5,
+                    height: 1.2,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 const Divider(height: 1),
@@ -270,8 +280,7 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
               spacing: 10,
               runSpacing: 10,
               children: timeSlotsLocal.map((slot) {
-                final status =
-                    (room['statuses'][slot] as String?) ?? 'unknown';
+                final status = (room['statuses'][slot] as String?) ?? 'unknown';
                 final color = getStatusColor(status);
                 return IgnorePointer(
                   ignoring: true,
@@ -285,23 +294,28 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                         const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
-                              color: color,
-                              borderRadius: BorderRadius.circular(12)),
+                            color: color,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Text(
                             status,
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12),
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     backgroundColor: Colors.white,
                     shape: const StadiumBorder(
-                        side: BorderSide(color: Color(0xFFBDBDBD))),
+                      side: BorderSide(color: Color(0xFFBDBDBD)),
+                    ),
                     onPressed: () {},
                     pressElevation: 0,
                     elevation: 0,
@@ -313,10 +327,13 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Close',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF003366))),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF003366),
+                  ),
+                ),
               ),
             ],
           ),
@@ -344,7 +361,11 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
             ],
           ),
           child: Row(
@@ -355,11 +376,17 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 onPressed: () => Navigator.maybePop(context),
               ),
               IconButton(
-                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                icon: const Icon(
+                  Icons.home_filled,
+                  color: Colors.white,
+                  size: 28,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const LecturerDashboard()),
+                    MaterialPageRoute(
+                      builder: (_) => const LecturerDashboard(),
+                    ),
                   );
                 },
               ),
@@ -368,11 +395,18 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('You are already on the Browse Room page'),
+                      content: const Text(
+                        'You are already on the Browse Room page',
+                      ),
                       duration: const Duration(milliseconds: 1200),
                       behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   );
                   // optional quick refresh on search tab tap:
@@ -402,8 +436,10 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
             height: headerHeight,
             decoration: const BoxDecoration(
               color: Color(0xFF003366),
-              borderRadius:
-                  BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             child: Column(
@@ -415,7 +451,10 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _HeaderText(title: 'Hi, $_lecturerName', subtitle: 'Browse Rooms'),
+                      _HeaderText(
+                        title: 'Hi, $_lecturerName',
+                        subtitle: 'Browse Rooms',
+                      ),
                       const _LogoutBtn(),
                     ],
                   ),
@@ -424,12 +463,19 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 18,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
+                        ),
                       ],
                     ),
                     child: Row(
@@ -439,16 +485,24 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                           width: 30,
                           height: 30,
                           decoration: const BoxDecoration(
-                              color: Colors.black87, shape: BoxShape.circle),
-                          child: const Icon(Icons.calendar_month,
-                              color: Colors.white, size: 24),
+                            color: Colors.black87,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.calendar_month,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        Text(_formatHeaderDate(DateTime.now()),
-                            style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87)),
+                        Text(
+                          _formatHeaderDate(DateTime.now()),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -479,7 +533,8 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                       backgroundColor: Colors.white,
                       selectedColor: const Color(0xFF184D83),
                       shape: const StadiumBorder(
-                          side: BorderSide(color: Color(0xFFBDBDBD), width: 1)),
+                        side: BorderSide(color: Color(0xFFBDBDBD), width: 1),
+                      ),
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontSize: 14,
@@ -514,13 +569,15 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
 
                       final Map<String, String> statuses =
                           Map<String, String>.from(room['statuses'] as Map);
-                      final bool isFullyBookedToday =
-                          !statuses.values.any((v) => v == 'available');
+                      final bool isFullyBookedToday = !statuses.values.any(
+                        (v) => v == 'available',
+                      );
                       final bool isDisabled = (room['room_status'] ?? 1) == 0;
 
                       final String img = (room['image'] ?? '').toString();
                       final bool isNetwork =
-                          img.startsWith('http://') || img.startsWith('https://');
+                          img.startsWith('http://') ||
+                          img.startsWith('https://');
 
                       return Container(
                         margin: EdgeInsets.only(
@@ -543,9 +600,10 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: const [
                                   BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 6,
-                                      offset: Offset(0, 2))
+                                    color: Colors.black12,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
                                 ],
                               ),
                               child: Column(
@@ -553,38 +611,51 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                                 children: [
                                   ClipRRect(
                                     borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(16)),
+                                      top: Radius.circular(16),
+                                    ),
                                     child: SizedBox(
                                       height: imgH,
                                       width: double.infinity,
                                       child: isNetwork
-                                          ? Image.network(img, fit: BoxFit.cover)
+                                          ? Image.network(
+                                              img,
+                                              fit: BoxFit.cover,
+                                            )
                                           : Image.asset(img, fit: BoxFit.cover),
                                     ),
                                   ),
                                   Expanded(
                                     child: Padding(
                                       padding: const EdgeInsets.fromLTRB(
-                                          10, 16, 10, 8),
+                                        10,
+                                        16,
+                                        10,
+                                        8,
+                                      ),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(room['name'],
-                                              style: const TextStyle(
-                                                  fontSize: 16.5,
-                                                  fontWeight: FontWeight.w700),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis),
+                                          Text(
+                                            room['name'],
+                                            style: const TextStyle(
+                                              fontSize: 16.5,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                           const SizedBox(height: 2),
                                           Text(
-                                              "${room['details']}  •  Max : ${room['max']} people",
-                                              style: const TextStyle(
-                                                  color: Colors.black54,
-                                                  fontSize: 12.5,
-                                                  height: 1.25),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis),
+                                            "${room['details']}  •  Max : ${room['max']} people",
+                                            style: const TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 12.5,
+                                              height: 1.25,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                           const SizedBox(height: 15),
                                           Row(
                                             children: [
@@ -592,40 +663,47 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                                                 width: 28,
                                                 height: 28,
                                                 decoration: BoxDecoration(
-                                                  color:
-                                                      const Color(0xFFF2F2F2),
+                                                  color: const Color(
+                                                    0xFFF2F2F2,
+                                                  ),
                                                   borderRadius:
                                                       BorderRadius.circular(14),
                                                 ),
                                                 child: const Icon(
-                                                    Icons.groups_outlined,
-                                                    size: 18,
-                                                    color: Colors.black87),
+                                                  Icons.groups_outlined,
+                                                  size: 18,
+                                                  color: Colors.black87,
+                                                ),
                                               ),
                                               const SizedBox(width: 10),
                                               ElevatedButton.icon(
                                                 onPressed: () =>
                                                     _showSlotsDialog(room),
                                                 icon: const Icon(
-                                                    Icons.info_outline,
-                                                    size: 18),
+                                                  Icons.info_outline,
+                                                  size: 18,
+                                                ),
                                                 label: const Text('Details'),
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: Colors.white,
-                                                  foregroundColor:
-                                                      const Color(0xFF003366),
+                                                  foregroundColor: const Color(
+                                                    0xFF003366,
+                                                  ),
                                                   elevation: 0,
                                                   side: const BorderSide(
-                                                      color:
-                                                          Color(0xFFBDBDBD)),
+                                                    color: Color(0xFFBDBDBD),
+                                                  ),
                                                   shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              10)),
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 10),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 10,
+                                                      ),
                                                 ),
                                               ),
                                               const Spacer(),
@@ -643,7 +721,8 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                             if (isDisabled || isFullyBookedToday) ...[
                               Positioned.fill(
                                 child: Container(
-                                    color: Colors.white.withOpacity(0.60)),
+                                  color: Colors.white.withOpacity(0.60),
+                                ),
                               ),
                               Positioned(
                                 top: 10,
@@ -652,12 +731,12 @@ class _LecturerBrowsingState extends State<LecturerBrowsing> {
                                 child: Center(
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 6),
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color:
-                                          Colors.black.withOpacity(0.80),
-                                      borderRadius:
-                                          BorderRadius.circular(20),
+                                      color: Colors.black.withOpacity(0.80),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
                                       isDisabled
@@ -693,16 +772,38 @@ class _HeaderText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parts = title.split(', ');
+    final hiPart = parts.isNotEmpty ? parts.first : 'Hi';
+    final namePart = parts.length > 1 ? parts[1] : '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold)),
-        Text(subtitle,
-            style: const TextStyle(color: Colors.white, fontSize: 22)),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$hiPart, ',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold, // bold "Hi,"
+                ),
+              ),
+              TextSpan(
+                text: namePart,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.normal, // normal name
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          subtitle,
+          style: const TextStyle(color: Colors.white, fontSize: 22),
+        ),
       ],
     );
   }

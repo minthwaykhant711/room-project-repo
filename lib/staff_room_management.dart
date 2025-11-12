@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_application_1/staff_browsing.dart';
 import 'staff_add_room.dart';
 import 'staff_edit_room.dart';
 import 'staff_dashboard.dart'; // class: StaffDashboard
@@ -15,54 +20,190 @@ class StaffRoomManagementPage extends StatefulWidget {
 class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
   static const kNavy = Color(0xFF003366);
 
-  // Map room name -> asset
-  String _imageFor(String name) {
-    if (name.toLowerCase().startsWith('study room a')) {
-      return 'assets/images/study room A.jpg';
-    } else if (name.toLowerCase().startsWith('multimedia room a')) {
-      return 'assets/images/multi room A.jpg';
-    } else {
-      return 'assets/images/study room B.jpg';
+  static const String _baseUrl = 'http://localhost:3000';
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
+
+  String _staffName = 'Staff';
+  String? _jwt;
+  bool _loading = false;
+
+  // Rooms loaded from API
+  final List<_RoomData> _rooms = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    _jwt = await _secure.read(key: 'jwt');
+    await _fetchMe();
+    await _fetchRooms();
+  }
+
+  Map<String, String> _authJsonHeaders() {
+    final h = <String, String>{'Content-Type': 'application/json'};
+    final t = _jwt;
+    if (t != null && t.isNotEmpty) h['Authorization'] = 'Bearer $t';
+    return h;
+  }
+
+  Future<void> _fetchMe() async {
+    try {
+      final resp = await http
+          .get(
+            Uri.parse('$_baseUrl/common/user_auth'),
+            headers: _authJsonHeaders(),
+          )
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is Map && data['ok'] == true && data['user'] is Map) {
+          final u = data['user'] as Map;
+          final fn = (u['first_name'] ?? '').toString().trim();
+          if (fn.isNotEmpty && mounted) setState(() => _staffName = '$fn');
+        }
+      }
+    } catch (_) {
+      /* ignore */
     }
   }
 
-  final List<_RoomData> rooms = [
-    _RoomData(
-      name: 'Meeting Room A',
-      capacity: 8,
-      status: RoomStatus.available,
-      imagePath: 'assets/images/study room B.jpg',
-    ),
-    _RoomData(
-      name: 'Study Room A',
-      capacity: 4,
-      status: RoomStatus.disabled,
-      imagePath: 'assets/images/study room A.jpg',
-    ),
-    _RoomData(
-      name: 'Multimedia Room A',
-      capacity: 11,
-      status: RoomStatus.available,
-      imagePath: 'assets/images/multi room A.jpg',
-    ),
-  ];
+  Future<void> _fetchRooms() async {
+    setState(() => _loading = true);
+    try {
+      // expects: [{ id, name, description, image_url, room_status(0/1), active_bookings(optional) }]
+      final resp = await http
+          .get(
+            Uri.parse('$_baseUrl/staff/rooms/management'),
+            headers: _authJsonHeaders(),
+          )
+          .timeout(const Duration(seconds: 12));
 
-  void toggleStatus(int i) {
-    setState(() {
-      rooms[i] = rooms[i].copyWith(
-        status: rooms[i].status == RoomStatus.available
-            ? RoomStatus.disabled
-            : RoomStatus.available,
-      );
-    });
+      if (resp.statusCode != 200) {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load rooms');
+        if (mounted) setState(() => _rooms.clear());
+        return;
+      }
+
+      final data = jsonDecode(resp.body);
+      if (data is! Map || data['ok'] != true || data['rooms'] is! List) {
+        _snack('Invalid rooms response');
+        if (mounted) setState(() => _rooms.clear());
+        return;
+      }
+
+      final List rows = data['rooms'];
+      final out = <_RoomData>[];
+
+      for (final r in rows) {
+        final id = r['id'];
+        final name = (r['name'] ?? '').toString();
+        final desc = (r['description'] ?? '').toString();
+        final image = (r['image_url'] ?? '').toString();
+        final status = (r['room_status'] == 1)
+            ? RoomStatus.available
+            : RoomStatus.disabled;
+
+        // use capacity from API directly
+        final int cap = (r['capacity'] is int)
+            ? (r['capacity'] as int)
+            : int.tryParse('${r['capacity'] ?? 0}') ?? 0;
+
+        out.add(
+          _RoomData(
+            id: id is int ? id : int.tryParse('$id') ?? 0,
+            name: name,
+            capacity: cap,
+            status: status,
+            imageUrl: image,
+            description: desc,
+          ),
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _rooms
+            ..clear()
+            ..addAll(out);
+        });
+      }
+    } on TimeoutException {
+      _snack('Timeout while loading rooms');
+    } catch (e) {
+      _snack('Network error: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
+  Future<void> _toggleStatus(_RoomData room) async {
+    // optimistic lock in UI after success only
+    try {
+      final resp = await http
+          .post(
+            Uri.parse('$_baseUrl/staff/rooms/${room.id}/toggle'),
+            headers: _authJsonHeaders(),
+            body: jsonEncode({}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (resp.statusCode == 200) {
+        // flip local status
+        final i = _rooms.indexWhere((e) => e.id == room.id);
+        if (i != -1 && mounted) {
+          setState(() {
+            _rooms[i] = _rooms[i].copyWith(
+              status: room.status == RoomStatus.available
+                  ? RoomStatus.disabled
+                  : RoomStatus.available,
+            );
+          });
+        }
+        _snack(
+          room.status == RoomStatus.available
+              ? 'Room disabled'
+              : 'Room enabled',
+        );
+      } else {
+        // 409 is expected when there are active bookings (Waiting/Approved)
+        String msg = 'Toggle failed';
+        try {
+          final d = jsonDecode(resp.body);
+          if (d is Map && d['error'] != null) msg = d['error'].toString();
+        } catch (_) {}
+        _snack(msg);
+      }
+    } on TimeoutException {
+      _snack('Timeout while toggling room');
+    } catch (e) {
+      _snack('Network error: $e');
+    }
+  }
+
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  // Map room name -> local fallback asset (only used if no server image)
+  String _fallbackAssetFor(String name) {
+    final n = name.toLowerCase();
+    if (n.startsWith('study room a')) return 'assets/images/study room A.jpg';
+    if (n.startsWith('multimedia room a'))
+      return 'assets/images/multi room A.jpg';
+    return 'assets/images/study room B.jpg';
+  }
+
+  // ===== UI =====
   @override
   Widget build(BuildContext context) {
     final headerHeight = MediaQuery.of(context).size.height * 0.26;
 
     return Scaffold(
-      // ===== BOTTOM NAV BAR =====
+      // ===== BOTTOM NAV BAR (unchanged) =====
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -93,17 +234,25 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                   size: 28,
                 ),
                 onPressed: () {
-                  // Go to StaffDashboard
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffDashboard()),
                   );
                 },
               ),
+              // ⬇️ Browse icon restored
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white, size: 28),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffBrowsing()),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.calendar_today, color: Colors.white),
                 onPressed: () {
-                  // Go to StaffHistory
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffHistory()),
@@ -119,7 +268,7 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ===== HEADER (modified like LecturerHistory) =====
+          // ===== HEADER (keep your UI — only change name to dynamic) =====
           Container(
             decoration: const BoxDecoration(
               color: kNavy,
@@ -140,15 +289,15 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Hi, Staff / Room Management
+                      // "Hi, Staff" -> bold only "Hi," and keep name normal; name from /common/user_auth
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          RichText(
-                            text: const TextSpan(
+                          Text.rich(
+                            TextSpan(
                               children: [
-                                TextSpan(
-                                  text: 'Hi',
+                                const TextSpan(
+                                  text: 'Hi, ',
                                   style: TextStyle(
                                     fontSize: 28,
                                     color: Colors.white,
@@ -156,10 +305,11 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                                   ),
                                 ),
                                 TextSpan(
-                                  text: ', Staff',
-                                  style: TextStyle(
+                                  text: _staffName,
+                                  style: const TextStyle(
                                     fontSize: 28,
                                     color: Colors.white,
+                                    fontWeight: FontWeight.normal,
                                   ),
                                 ),
                               ],
@@ -171,8 +321,7 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                           ),
                         ],
                       ),
-
-                      // Logout button
+                      // Logout
                       IconButton(
                         onPressed: () => showLogoutDialog(context),
                         icon: const Icon(
@@ -185,17 +334,21 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                   ),
                 ),
 
-                // Add New Room button
+                // ===== existing "Add New Room" chip (navigate, then refresh on return) =====
                 const SizedBox(height: 35),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const StaffAddRoomPage(),
-                      ),
-                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const StaffAddRoomPage(),
+                        ),
+                      );
+                      // refresh list after adding
+                      await _fetchRooms();
+                    },
                     child: Container(
                       height: 46,
                       decoration: BoxDecoration(
@@ -209,9 +362,9 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
+                        children: [
                           SizedBox(width: 14),
                           CircleAvatar(
                             radius: 14,
@@ -243,72 +396,94 @@ class _StaffRoomManagementPageState extends State<StaffRoomManagementPage> {
 
           // ===== ROOM LIST =====
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              itemCount: rooms.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _RoomCard(
-                data: rooms[i],
-                onToggle: () => toggleStatus(i),
-                onEdit: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => StaffEditRoomPage(
-                        initialName: rooms[i].name,
-                        initialCapacity: '${rooms[i].capacity} People',
-                        initialDescription: _descFor(rooms[i].name),
-                        imagePath:
-                            rooms[i].imagePath ?? _imageFor(rooms[i].name),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : (_rooms.isEmpty
+                      ? const _EmptyRooms()
+                      : RefreshIndicator(
+                          onRefresh: _fetchRooms,
+                          child: ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                            itemCount: _rooms.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, i) {
+                              final r = _rooms[i];
+                              return _RoomCard(
+                                data: r,
+                                imageFallback: _fallbackAssetFor(r.name),
+                                onToggle: () => _toggleStatus(r),
+                                onEdit: () async {
+                                  // If the API gave us a URL, pass it through. Otherwise pass a local fallback asset.
+                                  final imageForEdit = (r.imageUrl.isNotEmpty)
+                                      ? r.imageUrl
+                                      : _fallbackAssetFor(r.name);
+
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => StaffEditRoomPage(
+                                        roomId: r.id,
+                                        initialName: r.name,
+                                        initialCapacity: r.capacity > 0
+                                            ? '${r.capacity} People'
+                                            : '',
+                                        initialDescription: r.description,
+                                        imagePath:
+                                            imageForEdit, // <-- use URL if we have one
+                                      ),
+                                    ),
+                                  );
+                                  await _fetchRooms(); // refresh after returning
+                                },
+                              );
+                            },
+                          ),
+                        )),
           ),
         ],
       ),
     );
   }
-
-  String _descFor(String name) {
-    if (name.toLowerCase().contains('study'))
-      return 'Quiet Room, Aircon, Whiteboard';
-    if (name.toLowerCase().contains('multimedia'))
-      return 'TV, Aircon, Projects available';
-    return 'Quiet Room, Aircon, Projector';
-  }
 }
-
-/* ===== MODELS / ROOM CARD ===== */
 
 enum RoomStatus { available, disabled }
 
 class _RoomData {
+  final int id;
   final String name;
-  final int capacity;
+  final int capacity; // optional, derived from description if present
   final RoomStatus status;
-  final String? imagePath;
+  final String imageUrl; // may be empty → use fallback asset in card
+  final String description; // for edit page
 
   const _RoomData({
+    required this.id,
     required this.name,
     required this.capacity,
     required this.status,
-    this.imagePath,
+    required this.imageUrl,
+    required this.description,
   });
 
   _RoomData copyWith({
+    int? id,
     String? name,
     int? capacity,
     RoomStatus? status,
-    String? imagePath,
+    String? imageUrl,
+    String? description,
   }) {
     return _RoomData(
+      id: id ?? this.id,
       name: name ?? this.name,
       capacity: capacity ?? this.capacity,
       status: status ?? this.status,
-      imagePath: imagePath ?? this.imagePath,
+      imageUrl: imageUrl ?? this.imageUrl,
+      description: description ?? this.description,
     );
   }
 }
@@ -318,10 +493,13 @@ class _RoomCard extends StatelessWidget {
     required this.data,
     required this.onToggle,
     required this.onEdit,
+    required this.imageFallback,
   });
+
   final _RoomData data;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
+  final String imageFallback;
 
   static const kGreen = Color(0xFF1FA22A);
   static const kRed = Color(0xFFDA351C);
@@ -329,13 +507,13 @@ class _RoomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAvailable = data.status == RoomStatus.available;
-    final img =
-        data.imagePath ??
-        (data.name.toLowerCase().contains('study a')
-            ? 'assets/images/study room A.jpg'
-            : data.name.toLowerCase().contains('multimedia')
-            ? 'assets/images/multi room A.jpg'
-            : 'assets/images/study room B.jpg');
+
+    final bool isNetwork =
+        data.imageUrl.startsWith('http://') ||
+        data.imageUrl.startsWith('https://');
+    final imgWidget = isNetwork && data.imageUrl.isNotEmpty
+        ? Image.network(data.imageUrl, width: 92, height: 72, fit: BoxFit.cover)
+        : Image.asset(imageFallback, width: 92, height: 72, fit: BoxFit.cover);
 
     return Container(
       decoration: BoxDecoration(
@@ -351,7 +529,7 @@ class _RoomCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(img, width: 92, height: 72, fit: BoxFit.cover),
+              child: imgWidget,
             ),
             const SizedBox(width: 12),
 
@@ -368,7 +546,7 @@ class _RoomCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Capacity : ${data.capacity} people',
+                    'Capacity : ${data.capacity > 0 ? data.capacity : '-'} people',
                     style: const TextStyle(color: Colors.black87, fontSize: 15),
                   ),
                   const SizedBox(height: 4),
@@ -430,6 +608,37 @@ class _RoomCard extends StatelessWidget {
         icon: Icon(icon, color: fg, size: 20),
         onPressed: onTap,
       ),
+    );
+  }
+}
+
+class _EmptyRooms extends StatelessWidget {
+  const _EmptyRooms();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      children: const [
+        SizedBox(height: 80),
+        Icon(Icons.meeting_room_outlined, size: 72, color: Colors.black26),
+        SizedBox(height: 12),
+        Center(
+          child: Text(
+            'No rooms yet',
+            style: TextStyle(fontSize: 18, color: Colors.black54),
+          ),
+        ),
+        SizedBox(height: 8),
+        Center(
+          child: Text(
+            'Tap “Add New Room” to create one',
+            style: TextStyle(color: Colors.black45),
+          ),
+        ),
+      ],
     );
   }
 }

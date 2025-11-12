@@ -126,7 +126,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
   Future<void> _fetchAvailability() async {
     setState(() => _loading = true);
     try {
-      final url = Uri.parse('$_baseUrl/common/rooms/availability?date=$_todayYMD');
+      final url = Uri.parse(
+        '$_baseUrl/common/rooms/availability?date=$_todayYMD',
+      );
       final resp = await http
           .get(url, headers: _authHeaders())
           .timeout(const Duration(seconds: 12));
@@ -156,6 +158,9 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
             final name = (r['name'] ?? '').toString();
             final desc = (r['description'] ?? '').toString();
             final imageUrl = (r['image_url'] ?? '').toString();
+            final cap = (r['capacity'] ?? 0) is int
+                ? (r['capacity'] as int)
+                : int.tryParse('${r['capacity']}') ?? 0;
 
             Map<String, dynamic> rawStatuses = {};
             if (r['statuses'] is Map<String, dynamic>) {
@@ -171,12 +176,11 @@ class _StudentBrowsingState extends State<StudentBrowsing> {
               'id': r['id'],
               'name': name,
               'details': desc.isNotEmpty ? desc : 'Room',
-              'max': 6,
+              'max': cap,
               'statuses': statuses,
               'image': imageUrl.isNotEmpty
                   ? imageUrl
                   : 'assets/images/study room A.jpg',
-              // backend should include room_status; default to 1 (enabled)
               'room_status': (r['room_status'] ?? 1),
             });
           }

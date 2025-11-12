@@ -28,6 +28,12 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need photo library access to update room pictures.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to take room pictures.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need photo library access to update room pictures.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -1,8 +1,11 @@
-import 'dart:ui';
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/logout_function.dart';
 import 'package:flutter_application_1/staff_browsing.dart';
-import 'staff_dashboard.dart'; // class: StaffDashboard
+import 'staff_dashboard.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class StaffHistory extends StatefulWidget {
   const StaffHistory({super.key});
@@ -13,13 +16,27 @@ class StaffHistory extends StatefulWidget {
 
 class _StaffHistoryState extends State<StaffHistory>
     with SingleTickerProviderStateMixin {
+  // ───────── config / deps ─────────
+  static const String _baseUrl = 'http://localhost:3000';
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
+
   late TabController _tabController;
-  final String username = 'Staff';
+
+  String _firstName = 'Staff';
+  String? _jwt;
+
+  bool _loadingPending = false;
+  bool _loadingHistory = false;
+
+  // data lists
+  List<Map<String, dynamic>> _pending = []; // all Waiting
+  List<Map<String, dynamic>> _history = []; // all Approved/Rejected
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _bootstrap();
   }
 
   @override
@@ -28,80 +45,192 @@ class _StaffHistoryState extends State<StaffHistory>
     super.dispose();
   }
 
-  // Sample Data
-  final List<Map<String, dynamic>> _allBookings = [
-    {
-      'room': 'Study Room A',
-      'date': 'Mon, Oct 20',
-      'time': '08:00 - 10:00',
-      'status': 0,
-      'approver': '',
-      'booked_by': 'Lisa',
-    },
-    {
-      'room': 'Study Room B',
-      'date': 'Wed, Oct 27',
-      'time': '12:00 - 14:00',
-      'status': 0,
-      'approver': '',
-      'booked_by': 'Tom',
-    },
-    {
-      'room': 'Study Room C',
-      'date': 'Mon, Oct 29',
-      'time': '10:00 - 12:00',
-      'status': 0,
-      'approver': '',
-      'booked_by': 'Adam',
-    },
-    {
-      'room': 'Study Room A',
-      'date': 'Mon, Oct 6',
-      'time': '08:00 - 10:00',
-      'status': 1,
-      'approver': 'Ajarn Surapong',
-      'booked_by': 'Lisa',
-    },
-    {
-      'room': 'Multimedia Room A',
-      'date': 'Wed, Oct 1',
-      'time': '08:00 - 10:00',
-      'status': 1,
-      'approver': 'Ajarn Bryan',
-      'booked_by': 'John',
-    },
-    {
-      'room': 'Study Room C',
-      'date': 'Tue, Sep 30',
-      'time': '13:00 - 15:00',
-      'status': 0, // Rejected
-      'approver': 'Ajarn Nick',
-      'booked_by': 'Emma',
-      'reason': 'Exceeded booking limit for this week',
-    },
+  Future<void> _bootstrap() async {
+    _jwt = await _secure.read(key: 'jwt');
+    await _fetchMe();
+    await Future.wait([_fetchPending(), _fetchHistory()]);
+  }
 
-    {
-      'room': 'Meeting Room A',
-      'date': 'Fri, Sep 26',
-      'time': '10:00 - 12:00',
-      'status': 1,
-      'approver': 'Ajarn Surapong',
-      'booked_by': 'Olivia',
-    },
-    {
-      'room': 'Meeting Room A',
-      'date': 'Fri, Sep 26',
-      'time': '10:00 - 12:00',
-      'status': 1,
-      'approver': 'Ajarn Surapong',
-      'booked_by': 'Liam',
-    },
-  ];
+  Map<String, String> _authHeaders() {
+    final h = <String, String>{'Content-Type': 'application/json'};
+    if (_jwt != null && _jwt!.isNotEmpty) h['Authorization'] = 'Bearer $_jwt';
+    return h;
+  }
 
-  // Booking card
+  Future<void> _fetchMe() async {
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/common/user_auth'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is Map && data['ok'] == true && data['user'] is Map) {
+          final u = data['user'] as Map;
+          final first = (u['first_name'] ?? '').toString().trim();
+          if (mounted && first.isNotEmpty) setState(() => _firstName = first);
+        }
+      }
+    } catch (_) {}
+  }
+
+  // date helpers
+  String _formatYMD(String ymd) {
+    try {
+      final d = DateTime.parse(ymd);
+      const w = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      final wd = w[(d.weekday + 6) % 7];
+      final mo = m[d.month - 1];
+      return '$wd, $mo ${d.day}';
+    } catch (_) {
+      return ymd;
+    }
+  }
+
+  // ───────── API calls ─────────
+
+  // ALL pending student bookings (Waiting)
+  Future<void> _fetchPending() async {
+    setState(() => _loadingPending = true);
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/staff/bookings/pending'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode != 200) {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load pending');
+        if (mounted) setState(() => _pending = []);
+        return;
+      }
+
+      final data = jsonDecode(resp.body);
+      if (data is! Map || data['ok'] != true || data['bookings'] is! List) {
+        _snack('Invalid pending response');
+        if (mounted) setState(() => _pending = []);
+        return;
+      }
+
+      final rows = (data['bookings'] as List);
+      final out = <Map<String, dynamic>>[];
+
+      for (final b in rows) {
+        final m = b as Map;
+        final roomName  = (m['room_name'] ?? 'Room').toString();
+        final dateYMD   = (m['booking_date'] ?? '').toString();
+        final start     = (m['start_time'] ?? '').toString();
+        final end       = (m['end_time'] ?? '').toString();
+        final student   = (m['booked_by_name'] ?? '').toString();
+
+        out.add({
+          'booking_id': m['booking_id'],
+          'room': roomName,
+          'date': _formatYMD(dateYMD),
+          'time': '${start.substring(0,5)} - ${end.substring(0,5)}',
+          'status': 0,            // 0 used for pending/rejected in your UI
+          'approver': '',         // empty => pending
+          'booked_by': student,
+          '_order_id': (m['booking_id'] ?? 0) as int,
+        });
+      }
+
+      // newest first by id
+      out.sort((a, b) => (b['_order_id'] as int).compareTo(a['_order_id'] as int));
+
+      if (mounted) setState(() => _pending = out);
+    } on TimeoutException {
+      _snack('Timeout while loading pending');
+    } catch (e) {
+      _snack('Network error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingPending = false);
+    }
+  }
+
+  // ALL historical bookings (Approved/Rejected) with full info
+  Future<void> _fetchHistory() async {
+    setState(() => _loadingHistory = true);
+    try {
+      final resp = await http
+          .get(Uri.parse('$_baseUrl/staff/bookings/history'), headers: _authHeaders())
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode != 200) {
+        _snack(resp.body.isNotEmpty ? resp.body : 'Failed to load history');
+        if (mounted) setState(() => _history = []);
+        return;
+      }
+
+      final data = jsonDecode(resp.body);
+      if (data is! Map || data['ok'] != true || data['bookings'] is! List) {
+        _snack('Invalid history response');
+        if (mounted) setState(() => _history = []);
+        return;
+      }
+
+      final rows = (data['bookings'] as List);
+      final out = <Map<String, dynamic>>[];
+
+      for (final b in rows) {
+        final m = b as Map;
+        final statusStr = (m['booking_status'] ?? '').toString(); // Approved | Rejected
+        final isApproved = statusStr == 'Approved';
+
+        final roomName  = (m['room_name'] ?? 'Room').toString();
+        final dateYMD   = (m['booking_date'] ?? '').toString();
+        final start     = (m['start_time'] ?? '').toString();
+        final end       = (m['end_time'] ?? '').toString();
+        final approver  = (m['approver_name'] ?? '').toString();
+        final student   = (m['booked_by_name'] ?? '').toString();
+        final reason    = (m['reject_reason'] ?? '').toString();
+
+        out.add({
+          'booking_id': m['booking_id'],
+          'room': roomName,
+          'date': _formatYMD(dateYMD),
+          'time': '${start.substring(0,5)} - ${end.substring(0,5)}',
+          'status': isApproved ? 1 : 0, // 1 approved, 0 rejected
+          'approver': approver,
+          'booked_by': student,
+          'reason': reason,
+          '_order_id': (m['booking_id'] ?? 0) as int,
+        });
+      }
+
+      // newest first by id
+      out.sort((a, b) => (b['_order_id'] as int).compareTo(a['_order_id'] as int));
+
+      if (mounted) setState(() => _history = out);
+    } on TimeoutException {
+      _snack('Timeout while loading history');
+    } catch (e) {
+      _snack('Network error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
+
+  // ───────── UI helpers ─────────
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  Widget _buildEmptyState(String title) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text('$title is empty', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            Text('No ${title.toLowerCase()} bookings found', style: TextStyle(color: Colors.grey[500])),
+          ],
+        ),
+      );
+
   Widget _buildBookingCard(Map<String, dynamic> b) {
     final int status = b['status'] as int;
-    final bool isPending = status == 0 && b['approver'].isEmpty;
+    final bool isPending = status == 0 && (b['approver'] as String).isEmpty;
 
     String statusText;
     Color statusColor;
@@ -109,7 +238,7 @@ class _StaffHistoryState extends State<StaffHistory>
 
     if (isPending) {
       statusText = 'Pending Approval';
-      statusColor = Colors.orange; // pending -> orange (match student view)
+      statusColor = Colors.orange;
       statusIcon = Icons.circle_outlined;
     } else if (status == 0) {
       statusText = 'Rejected';
@@ -117,21 +246,16 @@ class _StaffHistoryState extends State<StaffHistory>
       statusIcon = Icons.close;
     } else {
       statusText = 'Approved';
-      statusColor = const Color(
-        0xFF1FA22A,
-      ); // approved -> green (match student view)
+      statusColor = const Color(0xFF1FA22A);
       statusIcon = Icons.check;
     }
-
-    // use statusColor for a visible card border to make status distinct
-    final Color borderColor = statusColor;
 
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: borderColor, width: 2),
+        side: BorderSide(color: statusColor, width: 2),
       ),
       elevation: 4,
       child: Padding(
@@ -139,22 +263,19 @@ class _StaffHistoryState extends State<StaffHistory>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Room name
+            // Session in Room
             RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 16, color: Colors.black),
                 children: [
                   const TextSpan(text: 'Session in '),
-                  TextSpan(
-                    text: b['room'],
-                    style: const TextStyle(color: Colors.orange),
-                  ),
+                  TextSpan(text: b['room'], style: const TextStyle(color: Colors.orange)),
                 ],
               ),
             ),
             const SizedBox(height: 8),
 
-            // Date & time
+            // Date & Time
             Row(
               children: [
                 const Icon(Icons.calendar_month_outlined, size: 20),
@@ -166,7 +287,6 @@ class _StaffHistoryState extends State<StaffHistory>
                 Text(b['time'], style: const TextStyle(fontSize: 14)),
               ],
             ),
-
             const SizedBox(height: 8),
 
             // Booked by
@@ -180,7 +300,7 @@ class _StaffHistoryState extends State<StaffHistory>
                     children: [
                       const TextSpan(text: 'Booked by '),
                       TextSpan(
-                        text: b['booked_by'],
+                        text: (b['booked_by'] ?? '').toString(),
                         style: const TextStyle(color: Colors.orange),
                       ),
                     ],
@@ -188,10 +308,9 @@ class _StaffHistoryState extends State<StaffHistory>
                 ),
               ],
             ),
-
             const SizedBox(height: 7),
 
-            // Status
+            // Status line
             Row(
               children: [
                 Icon(statusIcon, color: statusColor, size: 20),
@@ -201,10 +320,10 @@ class _StaffHistoryState extends State<StaffHistory>
                     style: const TextStyle(fontSize: 14, color: Colors.black),
                     children: [
                       TextSpan(text: statusText),
-                      if (b['approver'].isNotEmpty) ...[
+                      if (!isPending && (b['approver'] as String).isNotEmpty) ...[
                         const TextSpan(text: ' by '),
                         TextSpan(
-                          text: b['approver'],
+                          text: (b['approver'] ?? '').toString(),
                           style: const TextStyle(color: Colors.orange),
                         ),
                       ],
@@ -214,27 +333,20 @@ class _StaffHistoryState extends State<StaffHistory>
               ],
             ),
 
-            // ─── REJECTION REASON (only for rejected bookings) ───────────────
+            // Reason for rejected ones
             if (status == 0 &&
-                b['approver'].isNotEmpty &&
-                b.containsKey('reason')) ...[
+                (b['approver'] as String).isNotEmpty &&
+                (b['reason'] ?? '').toString().isNotEmpty) ...[
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.info_outline,
-                    size: 20,
-                    color: Colors.redAccent,
-                  ),
+                  const Icon(Icons.info_outline, size: 20, color: Colors.redAccent),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Reason: ${b['reason']}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
                     ),
                   ),
                 ],
@@ -246,35 +358,11 @@ class _StaffHistoryState extends State<StaffHistory>
     );
   }
 
-  Widget _buildEmptyState(String title) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
-        const SizedBox(height: 16),
-        Text(
-          '$title is empty',
-          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'No ${title.toLowerCase()} bookings found',
-          style: TextStyle(color: Colors.grey[500]),
-        ),
-      ],
-    ),
-  );
-
-  // -------------------------------------------------------------------------
-  // MAIN BUILD
-  // -------------------------------------------------------------------------
+  // ───────── MAIN BUILD ─────────
   @override
   Widget build(BuildContext context) {
-    final pending = _allBookings.where((b) => b['approver'].isEmpty).toList();
-    final history = _allBookings
-        .where((b) => b['approver'].isNotEmpty)
-        .toList();
     final headerHeight = MediaQuery.of(context).size.height * 0.24;
+
     return Scaffold(
       backgroundColor: const Color(0xFFD9D9D9),
       extendBody: true,
@@ -288,40 +376,20 @@ class _StaffHistoryState extends State<StaffHistory>
           decoration: BoxDecoration(
             color: Colors.black87,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.maybePop(context)),
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.home_filled, color: Colors.white, size: 28),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffDashboard())),
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.home_filled,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const StaffDashboard()),
-                ),
-              ),
-
               IconButton(
                 icon: const Icon(Icons.search, color: Colors.white, size: 28),
                 onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const StaffBrowsing()),
-                  );
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const StaffBrowsing()));
                 },
               ),
               IconButton(
@@ -330,18 +398,11 @@ class _StaffHistoryState extends State<StaffHistory>
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text(
-                        'You are already on the Booking page',
-                      ),
+                      content: const Text('You are already on the Booking page'),
                       duration: const Duration(milliseconds: 1200),
                       behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   );
                 },
@@ -358,10 +419,7 @@ class _StaffHistoryState extends State<StaffHistory>
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFF003366),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
               border: Border(bottom: BorderSide(color: Colors.black, width: 2)),
             ),
             width: double.infinity,
@@ -375,15 +433,15 @@ class _StaffHistoryState extends State<StaffHistory>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Greeting
+                      // Greeting (bold "Hi," only)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          RichText(
-                            text: TextSpan(
+                          Text.rich(
+                            TextSpan(
                               children: [
                                 const TextSpan(
-                                  text: 'Hi',
+                                  text: 'Hi, ',
                                   style: TextStyle(
                                     fontSize: 28,
                                     color: Colors.white,
@@ -391,33 +449,29 @@ class _StaffHistoryState extends State<StaffHistory>
                                   ),
                                 ),
                                 TextSpan(
-                                  text: ', $username',
+                                  text: _firstName,
                                   style: const TextStyle(
                                     fontSize: 28,
                                     color: Colors.white,
+                                    fontWeight: FontWeight.normal,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const Text(
-                            'Bookings',
-                            style: TextStyle(fontSize: 25, color: Colors.white),
-                          ),
+                          const Text('Bookings', style: TextStyle(fontSize: 25, color: Colors.white)),
                         ],
                       ),
                       IconButton(
                         onPressed: () => showLogoutDialog(context),
-                        icon: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 40),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Tabs
                 Padding(
                   padding: const EdgeInsets.only(left: 20.0),
                   child: SizedBox(
@@ -442,25 +496,29 @@ class _StaffHistoryState extends State<StaffHistory>
             ),
           ),
 
-          // Tab Views
+          // Tabs
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                pending.isEmpty
-                    ? _buildEmptyState('Pending')
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 10, bottom: 100),
-                        itemCount: pending.length,
-                        itemBuilder: (_, i) => _buildBookingCard(pending[i]),
-                      ),
-                history.isEmpty
-                    ? _buildEmptyState('History')
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(top: 10, bottom: 100),
-                        itemCount: history.length,
-                        itemBuilder: (_, i) => _buildBookingCard(history[i]),
-                      ),
+                _loadingPending
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_pending.isEmpty
+                        ? _buildEmptyState('Pending')
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(top: 10, bottom: 100),
+                            itemCount: _pending.length,
+                            itemBuilder: (_, i) => _buildBookingCard(_pending[i]),
+                          )),
+                _loadingHistory
+                    ? const Center(child: CircularProgressIndicator())
+                    : (_history.isEmpty
+                        ? _buildEmptyState('History')
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(top: 10, bottom: 100),
+                            itemCount: _history.length,
+                            itemBuilder: (_, i) => _buildBookingCard(_history[i]),
+                          )),
               ],
             ),
           ),

@@ -326,7 +326,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                 TextSpan(
                                   text: ', ${username.isNotEmpty ? username : 'Lecturer'}',
                                   style: const TextStyle(
-                                    fontSize: 29,fontWeight: FontWeight.bold,
+                                    fontSize: 29,
                                     color: Colors.white,
                                   ),
                                 ),
